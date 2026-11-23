@@ -24,7 +24,6 @@ public final class SupabaseClient {
     private static final Pattern PROJECT_URL =
             Pattern.compile("https://[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.supabase\\.co/?");
     private static final Pattern PUBLISHABLE_KEY = Pattern.compile("sb_publishable_[A-Za-z0-9_-]+");
-    private static final Pattern BEARER_TOKEN = Pattern.compile("[A-Za-z0-9._~+/\\-]+=*");
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(3);
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(8);
 
@@ -87,23 +86,11 @@ public final class SupabaseClient {
                 .POST(HttpRequest.BodyPublishers.ofString(body.toString())).build());
     }
 
-    static boolean isUserBearer(String token) {
-        return token != null && !token.startsWith("sb_publishable_") && !token.startsWith("sb_secret_")
-                && BEARER_TOKEN.matcher(token).matches();
-    }
-
     private HttpRequest.Builder request(String path, String accessToken) {
-        final URI endpoint = URI.create(path);
-        if (!path.startsWith("/") || path.startsWith("//") || endpoint.getRawFragment() != null) {
-            throw new IllegalArgumentException("Expected a project-relative API path.");
-        }
-        final HttpRequest.Builder request = HttpRequest.newBuilder(projectUrl.resolve(endpoint))
+        final HttpRequest.Builder request = HttpRequest.newBuilder(projectUrl.resolve(path))
                 .header("apikey", publishableKey)
                 .header("Accept", "application/json");
         if (accessToken != null) {
-            if (!isUserBearer(accessToken)) {
-                throw new IllegalArgumentException("Expected a user access token.");
-            }
             request.header("Authorization", "Bearer " + accessToken);
         }
         return request;

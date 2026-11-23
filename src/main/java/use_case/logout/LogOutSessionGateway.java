@@ -1,9 +1,10 @@
 package use_case.logout;
 
+import use_case.account.AuthSession;
+
+import java.util.Optional;
+
 public interface LogOutSessionGateway {
-    /**
-     * Serialized with the other account operations. Detach the current session and profile before attempting remote
-     * revocation of that session only. Remote failure must not restore local state.
-     */
-    void logOutCurrentSession();
+    /** Forgets the signed-in user and returns the session that was active, if any. */
+    Optional<AuthSession> endCurrentSession();
 }

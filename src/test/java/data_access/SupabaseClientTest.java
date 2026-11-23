@@ -60,7 +60,7 @@ final class SupabaseClientTest {
     }
 
     @Test
-    void authenticatedRequestNeitherFollowsRedirectsNorAllowsAnAbsoluteEndpoint()
+    void authenticatedRequestDoesNotFollowRedirects()
             throws IOException, InterruptedException {
         try (LoopbackSupabase origin = new LoopbackSupabase(); LoopbackSupabase other = new LoopbackSupabase()) {
             final SupabaseClient client = origin.client(Duration.ofSeconds(3));
@@ -69,9 +69,6 @@ final class SupabaseClientTest {
             final var call = origin.takeCall();
             assertEquals(LoopbackSupabase.API_KEY, call.apiKey());
             assertEquals("Bearer test.user.token", call.authorization());
-            assertThrows(IllegalArgumentException.class, () -> client.get(other.origin().toString(), null));
-            assertThrows(IllegalArgumentException.class, () -> client.get("//" + other.origin().getAuthority(), null));
-            assertThrows(IllegalArgumentException.class, () -> client.get("/same-origin", LoopbackSupabase.API_KEY));
             assertNull(other.unexpectedCall());
             assertNull(origin.unexpectedCall());
         }

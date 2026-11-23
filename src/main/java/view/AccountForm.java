@@ -1,8 +1,5 @@
 package view;
 
-import interface_adapter.AccountViewModel.Error;
-import interface_adapter.AccountViewModel.Field;
-
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -14,45 +11,79 @@ import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
-import java.util.Arrays;
-import java.util.EnumMap;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
-final class AccountForm extends JPanel {
+/**
+ * Layout and behaviour shared by the Log In and Register forms. Subclasses add their fields, then call
+ * {@link #addActions}. A form clears itself whenever it is hidden.
+ */
+abstract class AccountForm extends JPanel {
     private static final int COLUMNS = 34;
-    private final Map<Field, JTextField> inputs = new EnumMap<>(Field.class);
-    private final Map<Field, JLabel> fieldErrors = new EnumMap<>(Field.class);
-    private final JTextArea status = new JTextArea(3, COLUMNS);
-    private final JButton submit;
-    private final JButton navigate;
-    private final JPasswordField password = new JPasswordField(COLUMNS);
-    private final JPasswordField confirmation;
 
-    AccountForm(boolean registering, Runnable submitAction, Runnable navigateAction) {
+    private final GridBagConstraints row = new GridBagConstraints();
+    private final Map<JTextField, JLabel> fieldErrors = new LinkedHashMap<>();
+    private final JTextArea status = new JTextArea(3, COLUMNS);
+    private JButton submit;
+    private JButton navigate;
+    private JTextField pendingFocus;
+
+    AccountForm(String title) {
         super(new GridBagLayout());
         setBorder(new EmptyBorder(16, 20, 16, 20));
-        final String title = registering ? "Register" : "Log In";
-        setName(title);
-        final GridBagConstraints row = new GridBagConstraints();
         row.gridx = 0;
         row.weightx = 1;
         row.fill = GridBagConstraints.HORIZONTAL;
         row.anchor = GridBagConstraints.NORTHWEST;
         add(new JLabel(title), row);
+        addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentShown(ComponentEvent event) {
+                focusFirstField();
+            }
 
-        addField(row, Field.EMAIL, "Email", 'E', new JTextField(COLUMNS), submitAction);
-        if (registering) {
-            addField(row, Field.USERNAME, "Username", 'U', new JTextField(COLUMNS), submitAction);
-            addField(row, Field.DISPLAY_NAME, "Display name", 'D', new JTextField(COLUMNS), submitAction);
-        }
-        addField(row, Field.PASSWORD, "Password", 'P', password, submitAction);
-        confirmation = registering ? new JPasswordField(COLUMNS) : null;
-        if (confirmation != null) {
-            addField(row, Field.CONFIRM_PASSWORD, "Confirm password", 'C', confirmation, submitAction);
-        }
+            @Override
+            public void componentHidden(ComponentEvent event) {
+                reset();
+            }
+        });
+    }
 
+    /** Called when the user submits the form. */
+    protected abstract void submit();
+
+    /** Called when the user switches to the other form. */
+    protected abstract void navigate();
+
+    protected JTextField addTextField(String label, char mnemonic) {
+        return addField(label, mnemonic, new JTextField(COLUMNS));
+    }
+
+    protected JPasswordField addPasswordField(String label, char mnemonic) {
+        return addField(label, mnemonic, new JPasswordField(COLUMNS));
+    }
+
+    private <T extends JTextField> T addField(String labelText, char mnemonic, T input) {
+        final JLabel label = new JLabel(labelText);
+        label.setLabelFor(input);
+        label.setDisplayedMnemonic(mnemonic);
+        row.insets = new Insets(5, 0, 0, 0);
+        add(label, row);
+        row.insets = new Insets(0, 0, 0, 0);
+        add(input, row);
+        input.addActionListener(event -> submit());
+
+        final JLabel error = new JLabel(" ");
+        error.setName(labelText + " error");
+        add(error, row);
+        fieldErrors.put(input, error);
+        return input;
+    }
+
+    protected void addActions(String submitText, String navigateText) {
         status.setName("Form status");
-        status.getAccessibleContext().setAccessibleName("Form status");
         status.setEditable(false);
         status.setFocusable(false);
         status.setOpaque(false);
@@ -61,10 +92,10 @@ final class AccountForm extends JPanel {
         status.setFont(new JLabel().getFont());
         add(status, row);
 
-        submit = new JButton(title);
-        submit.addActionListener(event -> submitAction.run());
-        navigate = new JButton(registering ? "Back to Log In" : "Create an account");
-        navigate.addActionListener(event -> navigateAction.run());
+        submit = new JButton(submitText);
+        submit.addActionListener(event -> submit());
+        navigate = new JButton(navigateText);
+        navigate.addActionListener(event -> navigate());
         final JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEADING));
         actions.add(submit);
         actions.add(navigate);
@@ -73,95 +104,79 @@ final class AccountForm extends JPanel {
         add(new JPanel(), row);
     }
 
-    private void addField(GridBagConstraints row, Field field, String labelText, char mnemonic, JTextField input,
-                          Runnable submitAction) {
-        final JLabel label = new JLabel(labelText);
-        label.setLabelFor(input);
-        label.setDisplayedMnemonic(mnemonic);
-        row.insets = new Insets(5, 0, 0, 0);
-        add(label, row);
-        row.insets = new Insets(0, 0, 0, 0);
-        add(input, row);
-        inputs.put(field, input);
-        input.addActionListener(event -> submitAction.run());
-
-        final JLabel error = new JLabel(" ");
-        error.setName(labelText + " error");
-        add(error, row);
-        fieldErrors.put(field, error);
-    }
-
-    String email() {
-        return inputs.get(Field.EMAIL).getText();
-    }
-
-    String username() {
-        return inputs.get(Field.USERNAME).getText();
-    }
-
-    String displayName() {
-        return inputs.get(Field.DISPLAY_NAME).getText();
-    }
-
-    String takePassword() {
-        return takePassword(password);
-    }
-
-    String takeConfirmation() {
-        return takePassword(confirmation);
-    }
-
-    private static String takePassword(JPasswordField input) {
-        final char[] password = input.getPassword();
-        try {
-            input.setText("");
-            return new String(password);
-        } finally {
-            Arrays.fill(password, '\0');
-        }
-    }
-
-    void reset() {
-        inputs.values().forEach(input -> input.setText(""));
+    /** Disables the form and shows progress while a controller call runs. */
+    protected void startAction(String progressMessage) {
         clearMessages();
+        status.setText(progressMessage);
+        setBusy(true);
     }
 
-    void clearMessages() {
-        fieldErrors.keySet().forEach(field -> setFieldError(field, null));
-        showStatus("");
-    }
-
-    void showStatus(String message) {
-        status.setText(message);
-        status.getAccessibleContext().setAccessibleDescription(message.isEmpty() ? null : message);
-        status.setFocusable(!message.isEmpty());
-    }
-
-    Field showError(Error error) {
-        final String message = "Error: " + error.message();
-        if (error.field() == Field.FORM) {
-            showStatus(message);
-            return Field.PASSWORD;
+    protected void finishAction() {
+        setBusy(false);
+        if (pendingFocus != null) {
+            pendingFocus.requestFocusInWindow();
+            pendingFocus = null;
         }
-        setFieldError(error.field(), message);
-        return error.field();
     }
 
-    private void setFieldError(Field field, String message) {
-        fieldErrors.get(field).setText(message == null ? " " : message);
-        inputs.get(field).getAccessibleContext().setAccessibleDescription(message);
+    protected void showNotice(String message) {
+        status.setText(message);
     }
 
-    void setBusy(boolean busy) {
-        submit.setEnabled(!busy);
-        navigate.setEnabled(!busy);
-        inputs.values().forEach(input -> input.setEnabled(!busy));
+    protected void showFieldError(JTextField field, String message) {
+        final String text = "Error: " + message;
+        fieldErrors.get(field).setText(text);
+        field.getAccessibleContext().setAccessibleDescription(text);
+        focus(field);
     }
 
-    void focus(Field field) {
+    /** Shows an error that isn't about one field, then moves focus to {@code retryField}. */
+    protected void showFormError(String message, JTextField retryField) {
+        status.setText("Error: " + message);
+        focus(retryField);
+    }
+
+    // Disabled fields can't take focus, so wait until the running action finishes.
+    private void focus(JTextField field) {
+        if (field.isEnabled()) {
+            field.requestFocusInWindow();
+        } else {
+            pendingFocus = field;
+        }
+    }
+
+    protected void clearMessages() {
+        status.setText("");
+        fieldErrors.forEach((field, error) -> {
+            error.setText(" ");
+            field.getAccessibleContext().setAccessibleDescription(null);
+        });
+    }
+
+    /** Reads a password and clears the field, so it is never left on screen after a submission. */
+    protected static String takePassword(JPasswordField field) {
+        final String password = new String(field.getPassword());
+        field.setText("");
+        return password;
+    }
+
+    public void focusFirstField() {
         if (getRootPane() != null) {
             getRootPane().setDefaultButton(submit);
         }
-        inputs.get(field).requestFocusInWindow();
+        fieldErrors.keySet().iterator().next().requestFocusInWindow();
+    }
+
+    private void reset() {
+        pendingFocus = null;
+        fieldErrors.keySet().forEach(field -> field.setText(""));
+        clearMessages();
+        setBusy(false);
+    }
+
+    private void setBusy(boolean busy) {
+        submit.setEnabled(!busy);
+        navigate.setEnabled(!busy);
+        fieldErrors.keySet().forEach(field -> field.setEnabled(!busy));
     }
 }
