@@ -51,11 +51,11 @@ A workout companion app that logs user exercises as well as having social capabi
 
 ### Register an Account
 
-A new user picks a username, display name and password. The system checks that the username is free and the password is valid, creates the account, and logs them in.
+A new user enters an email address, username, display name, password, and password confirmation. The system validates the details, creates the account, and signs the user in.
 
 ### Log In
 
-A registered user enters their username and password. If they're correct, the system logs them in and shows their workout plans.
+A registered user enters their email address and password. If the credentials are valid, the system loads their profile and opens My Plans.
 
 ### Find an Exercise
 
@@ -110,7 +110,6 @@ Instance Attributes:
 - UserID (UUID)
 - Username (String, unique)
 - Display Name (String)
-- Password (String)
 - Workout Plans (List of WorkoutPlan)
 - Workout History (List of Workout)
 
