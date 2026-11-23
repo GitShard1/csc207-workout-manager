@@ -1,18 +1,4 @@
-# Team Project
-
-Please keep this up-to-date with information about your project throughout the term.
-
-The readme should include information such as:
-- a summary of what your application is all about
-- a list of the user stories, along with who is responsible for each one
-- information about the API(s) that your project uses 
-- screenshots or animations demonstrating current functionality
-
-By keeping this README up-to-date,
-your team will find it easier to prepare for the final presentation
-at the end of the term.
-
-# Project Name
+# Workout Manager
 
 ## Team Information
 
@@ -35,15 +21,41 @@ A workout companion app that logs user exercises as well as having social capabi
 
 ## User Stories
 
-### As a user, I want to register my account so that I can start using the app.
-### As a beginner, I want to be able to search exercises by filters so I can find exercises I didn't know existed.
-### As a regular user, I want to create a workout plan so I don't have to log the same exercises every time.
-### As a user, I want to be able to edit my workout plan so I don't have to create a new one each time.
-### As a user, I want to log my exercises to track my progress and look at my history.
-### As a user, I want to see my history and personal records so I can see my own growth and feel motivated to keep working out.
-### As a user with friends, I want to send my friends friend requests to check in on each other.
-### As a user, I want to be able to respond to friend requests so I can choose whether I want to stay in touch or not.
-### As a user, I want to copy my friend's workout plans so I can do the same exercises as my friends.
+### User Story 1
+
+As a user, I want to register my account so that I can start using the app.
+
+### User Story 2
+
+As a beginner, I want to be able to search exercises by filters so I can find exercises I didn't know existed.
+
+### User Story 3
+
+As a regular user, I want to create a workout plan so I don't have to log the same exercises every time.
+
+### User Story 4
+
+As a user, I want to be able to edit my workout plan so I don't have to create a new one each time.
+
+### User Story 5
+
+As a user, I want to log my exercises to track my progress and look at my history.
+
+### User Story 6
+
+As a user, I want to see my history and personal records so I can see my own growth and feel motivated to keep working out.
+
+### User Story 7
+
+As a user with friends, I want to send my friends friend requests to check in on each other.
+
+### User Story 8
+
+As a user, I want to be able to respond to friend requests so I can choose whether I want to stay in touch or not.
+
+### User Story 9
+
+As a user, I want to copy my friend's workout plans so I can do the same exercises as my friends.
 
 ---
 
@@ -59,17 +71,20 @@ A workout companion app that logs user exercises as well as having social capabi
 2. The system validates the details and creates the account.
 3. The system loads the profile and opens Home.
 
-**Extensions:** At step 2, the user can correct rejected details; if account creation cannot be confirmed, they should try logging in before registering again. At step 3, the user stays signed out if the profile cannot be loaded or email confirmation is required, and can log in later.
+**Extensions:**
+- At step 2, if a detail is rejected, the system explains why and the user corrects it.
+- At step 2, if the system can't tell whether the account was created, it suggests logging in first in case the account already exists.
+- At step 3, if the profile can't be loaded or the email address needs confirming, the user stays signed out and can log in later.
 
 ### Log In
 
 **Actor:** Registered user. **Precondition:** Signed out. **Trigger:** The user submits their login details.
 
-**Success outcome:** The user is signed in on Home, the account landing screen.
+**Success outcome:** The user is signed in and sees Home.
 
 1. The user provides their email address and password.
 2. The system verifies the credentials and loads the profile.
-3. Home shows the user's display name and username. Workout features are not available yet.
+3. Home shows the user's display name and username.
 
 **Extensions:** At step 2, invalid credentials, pending email confirmation, or a service failure leave the user signed out. The app explains what they can try next.
 
@@ -77,13 +92,12 @@ A workout companion app that logs user exercises as well as having social capabi
 
 **Actor:** Signed-in user. **Precondition:** Home is open. **Trigger:** The user selects Log Out.
 
-**Success outcome:** The app no longer holds the signed-in profile or session, and Log In is visible.
+**Success outcome:** The user is signed out and sees Log In.
 
-1. The user requests to log out.
-2. The app clears the account details from the screen and returns to Log In.
-3. The app ends the local session and attempts to revoke that session with the account service.
+1. The system signs the user out and removes their details from the screen.
+2. The system returns to Log In and confirms that the user is signed out.
 
-**Extension:** At step 3, a remote revocation failure does not restore the local session.
+**Extension:** At step 1, if the account service can't be reached, the user is still signed out on this computer.
 
 ### Find an Exercise
 
@@ -141,6 +155,8 @@ Instance Attributes:
 - Workout Plans (List of WorkoutPlan)
 - Workout History (List of Workout)
 
+Rules: a username is 3 to 24 lowercase letters, digits or underscores, and a display name can't be blank.
+
 ### Exercise
 Instance Attributes:
 - ExerciseID (String, from the WorkoutX API)
@@ -164,7 +180,7 @@ Instance Attributes:
 - Name (String)
 - UserOwner ID (UUID)
 - Exercises (ordered List of PlannedExercise)
-- WorkoutCompleted (boolean) :: assuming that we're going with you just clicking complete after u finish the workout (no individual completion tracking)
+- WorkoutCompleted (boolean)
 - Is Preset (boolean)
 - Copied From User ID (UUID, optional)
 
@@ -205,11 +221,17 @@ Instance Attributes:
 
 ## API Usage
 
-- [Supabase Auth](https://supabase.com/docs/guides/auth/passwords) handles signup, login, and logout.
-- [Supabase Data REST](https://supabase.com/docs/guides/api) loads the signed-in user's profile.
-- [WorkoutX](https://workoutxapp.com/docs.html) is planned for exercise lookup.
+**API Name:** Supabase
 
-The hosted Supabase Auth settings endpoint responded successfully. Hosted account flows and authenticated profile reads remain unverified.
+**Documentation:** [Auth](https://supabase.com/docs/guides/auth/passwords), [Data REST API](https://supabase.com/docs/guides/api)
+
+**How it is used in the program:** Supabase Auth handles registering, logging in and logging out. Each user's username and display name are stored in a `profiles` table, which the app loads after the user signs in.
+
+**API Name:** WorkoutX
+
+**Documentation:** [Link](https://workoutxapp.com/docs.html)
+
+**How it is used in the program:** Planned for looking up exercises, including their descriptions, muscles worked, equipment and pictures.
 
 ---
 
@@ -221,22 +243,28 @@ The hosted Supabase Auth settings endpoint responded successfully. Hosted accoun
 
 ---
 
-## Development setup
-
-Install JDK 25 (LTS) and open `pom.xml` as a Maven project. The Maven wrapper downloads Maven automatically.
-
-- `./mvnw test`: check style and run unit tests.
-- `./mvnw verify`: also build the JAR and generate coverage at `target/site/jacoco/index.html`.
-
-On Windows PowerShell, use `.\mvnw.cmd` instead of `./mvnw`.
-Tests belong in `src/test/java`. GitHub Actions runs the checks on pull requests and pushes to `main`.
-
 ## How to Run
 
-With JDK 25 on your `PATH`, run this from the repository root, or run `app.WorkoutManagerApp` from your Maven-enabled IDE:
+Install JDK 25, then run this from the repository root (use `.\mvnw.cmd` on Windows):
 
 ```sh
-./mvnw compile org.codehaus.mojo:exec-maven-plugin:3.6.3:exec -Dexec.executable=java '-Dexec.args=-cp %classpath app.WorkoutManagerApp'
+./mvnw compile exec:exec
 ```
 
-The app uses the team's demo Supabase project by default. To use another isolated demo project, apply the [profile migration](supabase/migrations/20261123190718_account_profiles.sql), enable email signup with an 8-character password minimum, and disable email confirmation for automatic sign-in after signup. Set both `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` in the launcher environment. Leave both unset to use the demo project.
+You can also open `pom.xml` as a Maven project in your IDE and run `app.WorkoutManagerApp`. The app connects to the team's Supabase project, so no setup is needed.
+
+---
+
+## Notes
+
+### Development
+
+- `./mvnw test` checks style and runs the unit tests. `./mvnw verify` also writes a coverage report to `target/site/jacoco/index.html`.
+- GitHub Actions runs the same checks on pull requests and pushes to `main`.
+- To point the app at a different Supabase project, apply the [profile migration](supabase/migrations/20261123190718_account_profiles.sql), then set both `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`.
+
+### Using the signed-in user
+
+- Interactors that need the signed-in user depend on `use_case.account.CurrentUserReader`, which `InMemorySessionStore` implements.
+- Supabase DAOs send `InMemorySessionStore.accessToken()` as the bearer token so row-level security applies.
+- A new screen gets a view model extending `interface_adapter.ViewModel` and is registered with `ViewManager.addView`. Presenters open it by setting `ViewManagerModel`'s state to its view name.
