@@ -76,8 +76,8 @@ final class LoopbackSupabase implements AutoCloseable {
         replies.add(new Reply(status, body, null, false, onRequest));
     }
 
-    void stallBody(int status, String body, Runnable onRequest) {
-        replies.add(new Reply(status, body, null, true, onRequest));
+    void stallBody(int status, String body) {
+        replies.add(new Reply(status, body, null, true, () -> { }));
     }
 
     void redirectTo(URI target) {

@@ -10,8 +10,8 @@ public final class LogOutInteractor implements LogOutInputBoundary {
     }
 
     @Override
-    public void execute(LogOutRequest request) {
+    public void execute() {
         gateway.logOutCurrentSession();
-        output.present(LogOutResponse.SIGNED_OUT);
+        output.signedOut();
     }
 }

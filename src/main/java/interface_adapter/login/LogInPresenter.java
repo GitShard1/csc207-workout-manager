@@ -23,8 +23,7 @@ public final class LogInPresenter implements LogInOutputBoundary {
             }
             case LogInResponse.Failure failure -> new Error(Field.FORM, switch (failure) {
                 case BAD_CREDENTIALS -> "Email or password is incorrect.";
-                case NO_USABLE_SESSION ->
-                        "We couldn't complete your login. If asked to confirm your email, do that first.";
+                case NO_USABLE_SESSION -> "Confirm your email if prompted, then try logging in again.";
                 case RETRYABLE_FAILURE -> "We couldn't log you in right now. Please try again.";
             });
         });

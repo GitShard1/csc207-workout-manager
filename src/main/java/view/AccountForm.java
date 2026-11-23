@@ -25,6 +25,8 @@ final class AccountForm extends JPanel {
     private final JTextArea status = new JTextArea(3, COLUMNS);
     private final JButton submit;
     private final JButton navigate;
+    private final JPasswordField password = new JPasswordField(COLUMNS);
+    private final JPasswordField confirmation;
 
     AccountForm(boolean registering, Runnable submitAction, Runnable navigateAction) {
         super(new GridBagLayout());
@@ -43,10 +45,10 @@ final class AccountForm extends JPanel {
             addField(row, Field.USERNAME, "Username", 'U', new JTextField(COLUMNS), submitAction);
             addField(row, Field.DISPLAY_NAME, "Display name", 'D', new JTextField(COLUMNS), submitAction);
         }
-        addField(row, Field.PASSWORD, "Password", 'P', new JPasswordField(COLUMNS), submitAction);
-        if (registering) {
-            addField(row, Field.CONFIRM_PASSWORD, "Confirm password", 'C',
-                    new JPasswordField(COLUMNS), submitAction);
+        addField(row, Field.PASSWORD, "Password", 'P', password, submitAction);
+        confirmation = registering ? new JPasswordField(COLUMNS) : null;
+        if (confirmation != null) {
+            addField(row, Field.CONFIRM_PASSWORD, "Confirm password", 'C', confirmation, submitAction);
         }
 
         status.setName("Form status");
@@ -89,12 +91,27 @@ final class AccountForm extends JPanel {
         fieldErrors.put(field, error);
     }
 
-    String text(Field field) {
-        return inputs.get(field).getText();
+    String email() {
+        return inputs.get(Field.EMAIL).getText();
     }
 
-    String takePassword(Field field) {
-        final JPasswordField input = (JPasswordField) inputs.get(field);
+    String username() {
+        return inputs.get(Field.USERNAME).getText();
+    }
+
+    String displayName() {
+        return inputs.get(Field.DISPLAY_NAME).getText();
+    }
+
+    String takePassword() {
+        return takePassword(password);
+    }
+
+    String takeConfirmation() {
+        return takePassword(confirmation);
+    }
+
+    private static String takePassword(JPasswordField input) {
         final char[] password = input.getPassword();
         try {
             input.setText("");

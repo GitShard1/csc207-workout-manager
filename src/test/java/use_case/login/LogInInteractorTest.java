@@ -2,6 +2,8 @@ package use_case.login;
 
 import entity.User;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import use_case.account.AccountProfile;
 
 import java.util.ArrayList;
@@ -10,8 +12,6 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
 
 class LogInInteractorTest {
     private static final LogInRequest VALID = new LogInRequest("  Person@example.com  ", " p ");
@@ -21,37 +21,27 @@ class LogInInteractorTest {
     private final LogInInputBoundary interactor = new LogInInteractor(gateway, responses::add);
 
     @Test
-    void noSessionAndProfileFailureLeaveSignedOutThenSuccessfulRetryPublishesProfile() {
-        gateway.result = LogInAccountGateway.Failure.NO_USABLE_SESSION;
-        interactor.execute(VALID);
-        assertNull(gateway.signedIn);
-
-        gateway.result = LogInAccountGateway.Failure.RETRYABLE_FAILURE;
-        interactor.execute(VALID);
-        assertNull(gateway.signedIn);
-
+    void forwardsNormalizedCredentialsAndReturnsAProfileSnapshot() {
         final User profile = new User(UUID.randomUUID(), "new_user", "New User");
         gateway.result = new LogInAccountGateway.Success(profile);
         interactor.execute(VALID);
 
-        assertSame(profile, gateway.signedIn);
         assertEquals("Person@example.com", gateway.email);
         assertEquals(VALID.password(), gateway.password);
         profile.setDisplayName("Changed After Login");
-        assertEquals(List.of(LogInResponse.Failure.NO_USABLE_SESSION, LogInResponse.Failure.RETRYABLE_FAILURE,
-                new LogInResponse.Success(new AccountProfile(profile.getUserID(), "new_user", "New User"))), responses);
+        assertEquals(List.of(new LogInResponse.Success(
+                new AccountProfile(profile.getUserID(), "new_user", "New User"))), responses);
     }
 
-    @Test
-    void unknownEmailAndWrongPasswordHaveTheSameOutcome() {
-        gateway.result = LogInAccountGateway.Failure.BAD_CREDENTIALS;
+    @ParameterizedTest
+    @CsvSource({"BAD_CREDENTIALS, BAD_CREDENTIALS", "NO_USABLE_SESSION, NO_USABLE_SESSION",
+        "RETRYABLE_FAILURE, RETRYABLE_FAILURE"})
+    void presentsGatewayFailure(LogInAccountGateway.Failure result, LogInResponse.Failure expected) {
+        gateway.result = result;
 
-        interactor.execute(new LogInRequest("missing@example.com", "any_password"));
-        interactor.execute(new LogInRequest("known@example.com", "wrong_password"));
+        interactor.execute(VALID);
 
-        assertEquals(List.of(LogInResponse.Failure.BAD_CREDENTIALS, LogInResponse.Failure.BAD_CREDENTIALS), responses);
-        assertEquals(2, gateway.calls);
-        assertNull(gateway.signedIn);
+        assertEquals(List.of(expected), responses);
     }
 
     @Test
@@ -75,16 +65,11 @@ class LogInInteractorTest {
         private int calls;
         private String email;
         private String password;
-        private User signedIn;
-
         @Override
         public Result logIn(String email, String password) {
             calls++;
             this.email = email;
             this.password = password;
-            if (result instanceof Success success) {
-                signedIn = success.user();
-            }
             return result;
         }
     }

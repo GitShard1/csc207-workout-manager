@@ -27,9 +27,8 @@ public final class WorkoutManagerApp {
         final SupabaseAccountDao accounts;
         try {
             accounts = new SupabaseAccountDao(SupabaseClient.fromEnvironment());
-        } catch (IllegalArgumentException | IllegalStateException ignored) {
-            SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(null,
-                    "Check the Supabase URL and publishable key settings before starting the app.",
+        } catch (SupabaseClient.ConfigurationException failure) {
+            SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(null, failure.getMessage(),
                     "Account setup is unavailable", JOptionPane.ERROR_MESSAGE));
             return;
         }

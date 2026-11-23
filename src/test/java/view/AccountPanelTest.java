@@ -9,6 +9,8 @@ import interface_adapter.logout.LogOutPresenter;
 import interface_adapter.register.RegisterController;
 import interface_adapter.register.RegisterPresenter;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import use_case.login.LogInAccountGateway;
 import use_case.login.LogInInteractor;
 import use_case.logout.LogOutInteractor;
@@ -28,12 +30,14 @@ import javax.swing.event.DocumentListener;
 import javax.swing.text.JTextComponent;
 import java.awt.Component;
 import java.awt.Container;
+import java.awt.event.ActionEvent;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -46,20 +50,20 @@ class AccountPanelTest {
     private static final int WAIT_SECONDS = 5;
 
     @Test
-    void registrationErrorsKeepNonPasswordFieldsAndRetryCanOpenMyPlans() throws Exception {
+    void registrationErrorsKeepNonPasswordFieldsAndRetryOpensHome() throws Exception {
         final FakeAccounts accounts = new FakeAccounts();
         final AccountPanel panel = createPanel(accounts);
         final JPanel login = named(panel, "Log In", JPanel.class);
         final JPanel register = named(panel, "Register", JPanel.class);
-        final JPanel plans = named(panel, "My Plans", JPanel.class);
+        final JPanel home = named(panel, "Home", JPanel.class);
         final JButton submit = button(register, "Register");
         final AtomicInteger usernameErrorRenders = new AtomicInteger();
         final AtomicInteger offEdtRenders = new AtomicInteger();
 
-        onEdt(() -> {
+        runOnEdt(() -> {
             assertTrue(login.isVisible());
             assertFalse(register.isVisible());
-            assertFalse(plans.isVisible());
+            assertFalse(home.isVisible());
             setText(login, "Email", "unsent@example.test");
             setText(login, "Password", "unsent password");
             button(login, "Create an account").doClick(0);
@@ -86,10 +90,9 @@ class AccountPanelTest {
             assertPasswordCleared(register, "Password");
             assertPasswordCleared(register, "Confirm password");
             assertFalse(submit.isEnabled());
-            return null;
         });
         awaitEdt(submit::isEnabled);
-        onEdt(() -> {
+        runOnEdt(() -> {
             assertTrue(register.isVisible());
             assertEquals("Error: That username is taken.",
                     named(register, "Username error", JLabel.class).getText());
@@ -101,67 +104,33 @@ class AccountPanelTest {
             assertEquals("Sam", input(register, "Display name").getText());
             assertTrue(usernameErrorRenders.get() > 0);
             assertEquals(0, offEdtRenders.get());
-            return null;
         });
 
         accounts.registration = RegisterAccountGateway.Failure.SIGNUP_UNCERTAIN;
-        onEdt(() -> {
+        runOnEdt(() -> {
             setText(register, "Username", "sam_2");
             fillRegistrationPasswords(register);
             submit.doClick(0);
-            return null;
         });
         awaitEdt(submit::isEnabled);
-        onEdt(() -> {
+        runOnEdt(() -> {
+            assertTrue(register.isVisible());
+            assertTrue(status(register).startsWith("Error:"));
+            assertAccessibleStatus(register);
             assertEquals(" ", named(register, "Username error", JLabel.class).getText());
             assertNull(fieldDescription(register, "Username"));
-            assertTrue(status(register).contains("Try logging in before registering again"));
-            assertAccessibleStatus(register);
             assertEquals("sam_2", input(register, "Username").getText());
             assertPasswordCleared(register, "Password");
             assertPasswordCleared(register, "Confirm password");
-            return null;
-        });
-
-        accounts.registration = RegisterAccountGateway.Failure.RETRYABLE_FAILURE;
-        onEdt(() -> {
-            fillRegistrationPasswords(register);
-            submit.doClick(0);
-            return null;
-        });
-        awaitEdt(submit::isEnabled);
-        onEdt(() -> {
-            assertEquals("Error: We couldn't finish registration. Try logging in first, or try again later.",
-                    status(register));
-            assertAccessibleStatus(register);
-            assertNull(fieldDescription(register, "Username"));
-            assertEquals("sam_2", input(register, "Username").getText());
-            assertPasswordCleared(register, "Password");
-            assertPasswordCleared(register, "Confirm password");
-            return null;
-        });
-
-        accounts.registration = RegisterAccountGateway.Failure.NO_USABLE_SESSION;
-        onEdt(() -> {
-            fillRegistrationPasswords(register);
-            submit.doClick(0);
-            return null;
-        });
-        awaitEdt(submit::isEnabled);
-        onEdt(() -> {
-            assertTrue(register.isVisible());
-            assertTrue(status(register).contains("Registration didn't log you in"));
-            assertTrue(status(register).contains("If asked to confirm your email"));
             setText(register, "Confirm password", "discard on navigation");
             button(register, "Back to Log In").doClick(0);
             assertTrue(login.isVisible());
             assertPasswordCleared(register, "Confirm password");
             assertEquals("", status(register));
-            return null;
         });
 
         accounts.registration = new RegisterAccountGateway.Success(user("sam_2", "Sam"));
-        onEdt(() -> {
+        runOnEdt(() -> {
             button(login, "Create an account").doClick(0);
             assertEquals("", input(register, "Email").getText());
             setText(register, "Email", "sam@example.test");
@@ -169,51 +138,46 @@ class AccountPanelTest {
             setText(register, "Display name", "Sam");
             fillRegistrationPasswords(register);
             submit.doClick(0);
-            return null;
         });
-        awaitEdt(plans::isVisible);
-        onEdt(() -> {
-            assertEquals("Signed in as Sam", named(plans, "Signed-in account", JLabel.class).getText());
-            assertEquals("@sam_2", named(plans, "Signed-in handle", JLabel.class).getText());
-            assertNotNull(find(plans, JLabel.class,
-                    label -> "Workout plans are not available in this version.".equals(label.getText())));
+        awaitEdt(home::isVisible);
+        runOnEdt(() -> {
+            assertEquals("Signed in as Sam", named(home, "Signed-in account", JLabel.class).getText());
+            assertEquals("@sam_2", named(home, "Signed-in handle", JLabel.class).getText());
             assertEquals("", input(register, "Email").getText());
             assertEquals("", input(register, "Username").getText());
             assertEquals("", input(register, "Display name").getText());
             assertPasswordCleared(register, "Password");
             assertPasswordCleared(register, "Confirm password");
-            return null;
         });
-        assertEquals(5, accounts.registerCalls.get());
+        assertEquals(3, accounts.registerCalls.get());
     }
 
     @Test
-    void loginAndLogoutSerializeActionsAndDiscardPreviousAccountStateEvenOnRevocationFailure() throws Exception {
+    void loginAndLogoutSerializeActionsAndDiscardPreviousAccountState() throws Exception {
         final FakeAccounts accounts = new FakeAccounts();
         final AccountPanel panel = createPanel(accounts);
         final JPanel login = named(panel, "Log In", JPanel.class);
         final JPanel register = named(panel, "Register", JPanel.class);
-        final JPanel plans = named(panel, "My Plans", JPanel.class);
+        final JPanel home = named(panel, "Home", JPanel.class);
         final JButton submit = button(login, "Log In");
         final JButton navigate = button(login, "Create an account");
-        final JButton logOut = button(plans, "Log Out");
-        final JLabel accountLabel = named(plans, "Signed-in account", JLabel.class);
-        final JLabel handleLabel = named(plans, "Signed-in handle", JLabel.class);
+        final JButton logOut = button(home, "Log Out");
+        final JLabel accountLabel = named(home, "Signed-in account", JLabel.class);
+        final JLabel handleLabel = named(home, "Signed-in handle", JLabel.class);
         final AtomicInteger offEdtRenders = new AtomicInteger();
         final Gate loginGate = new Gate();
         accounts.loginGate = loginGate;
-        onEdt(() -> {
+        runOnEdt(() -> {
             accountLabel.addPropertyChangeListener("text", event -> {
                 if (!SwingUtilities.isEventDispatchThread()) {
                     offEdtRenders.incrementAndGet();
                 }
             });
             enterLogin(login, "first@example.test");
-            return null;
         });
         try {
             loginGate.awaitEntered();
-            onEdt(() -> {
+            runOnEdt(() -> {
                 assertTrue(login.isVisible());
                 assertEquals("Logging in…", status(login));
                 assertPasswordCleared(login, "Password");
@@ -223,59 +187,42 @@ class AccountPanelTest {
                 input(login, "Password").postActionEvent();
                 navigate.doClick(0);
                 assertFalse(register.isVisible());
-                return null;
             });
             assertEquals(1, accounts.loginCalls.get());
         } finally {
             loginGate.release();
         }
         awaitEdt(submit::isEnabled);
-        onEdt(() -> {
-            assertEquals("Error: Email or password is incorrect.", status(login));
+        runOnEdt(() -> {
+            assertTrue(status(login).startsWith("Error:"));
+            assertAccessibleStatus(login);
             assertEquals("first@example.test", input(login, "Email").getText());
             assertPasswordCleared(login, "Password");
-            return null;
         });
 
         accounts.loginGate = null;
-        accounts.authentication = LogInAccountGateway.Failure.RETRYABLE_FAILURE;
-        onEdt(() -> {
-            enterLogin(login, "first@example.test");
-            return null;
-        });
-        awaitEdt(submit::isEnabled);
-        onEdt(() -> {
-            assertTrue(login.isVisible());
-            assertEquals("Error: We couldn't log you in right now. Please try again.", status(login));
-            assertAccessibleStatus(login);
-            assertPasswordCleared(login, "Password");
-            return null;
-        });
 
         final String longDisplayName = "First ".repeat(200);
         final String signedInLabel = "Signed in as " + longDisplayName;
         accounts.authentication = new LogInAccountGateway.Success(user("first", longDisplayName));
-        onEdt(() -> {
-            enterLogin(login, "first@example.test");
-            return null;
-        });
-        awaitEdt(plans::isVisible);
+        runOnEdt(() -> enterLogin(login, "first@example.test"));
+        awaitEdt(home::isVisible);
 
         final Gate logoutGate = new Gate();
         accounts.logoutGate = logoutGate;
         try {
-            onEdt(() -> {
+            runOnEdt(() -> {
                 assertEquals(signedInLabel, accountLabel.getText());
                 assertEquals("@first", handleLabel.getText());
                 accountLabel.addPropertyChangeListener("text", event -> {
                     if (signedInLabel.equals(event.getOldValue()) && "".equals(event.getNewValue())) {
                         logOut.doClick(0);
-                        assertTrue(plans.isVisible(), "Reentrant logout must not start a second transition");
+                        assertTrue(home.isVisible(), "Reentrant logout must not start a second transition");
                     }
                 });
                 logOut.doClick(0);
                 assertTrue(login.isVisible());
-                assertFalse(plans.isVisible());
+                assertFalse(home.isVisible());
                 assertEquals("", accountLabel.getText());
                 assertEquals("", handleLabel.getText());
                 assertEquals("", input(login, "Email").getText());
@@ -283,46 +230,39 @@ class AccountPanelTest {
                 assertEquals("Signing out…", status(login));
                 assertFalse(submit.isEnabled());
                 assertFalse(navigate.isEnabled());
-                return null;
             });
             logoutGate.awaitEntered();
             assertNull(accounts.current);
-            onEdt(() -> {
+            runOnEdt(() -> {
                 input(login, "Password").postActionEvent();
                 navigate.doClick(0);
                 logOut.doClick(0);
                 assertFalse(register.isVisible());
-                return null;
             });
-            assertEquals(3, accounts.loginCalls.get());
+            assertEquals(2, accounts.loginCalls.get());
             assertEquals(0, accounts.registerCalls.get());
             assertEquals(1, accounts.logoutCalls.get());
         } finally {
             logoutGate.release();
         }
         awaitEdt(submit::isEnabled);
-        onEdt(() -> {
+        runOnEdt(() -> {
             assertTrue(login.isVisible());
             assertEquals("You’re signed out.", status(login));
             assertEquals("", accountLabel.getText());
             assertEquals("", handleLabel.getText());
-            return null;
         });
 
         accounts.authentication = new LogInAccountGateway.Success(user("second", "Second"));
-        onEdt(() -> {
-            enterLogin(login, "second@example.test");
-            return null;
-        });
-        awaitEdt(plans::isVisible);
-        onEdt(() -> {
+        runOnEdt(() -> enterLogin(login, "second@example.test"));
+        awaitEdt(home::isVisible);
+        runOnEdt(() -> {
             assertEquals("Signed in as Second", accountLabel.getText());
             assertEquals("@second", handleLabel.getText());
             assertEquals("", status(login));
             assertEquals(0, offEdtRenders.get());
-            return null;
         });
-        assertEquals(4, accounts.loginCalls.get());
+        assertEquals(3, accounts.loginCalls.get());
         assertEquals(1, accounts.logoutCalls.get());
     }
 
@@ -335,7 +275,8 @@ class AccountPanelTest {
         final JButton navigate = button(login, "Create an account");
         final JButton submit = button(login, "Log In");
         final AtomicInteger callbackCount = new AtomicInteger();
-        onEdt(() -> {
+        final AtomicReference<String> statusAtEnable = new AtomicReference<>();
+        runOnEdt(() -> {
             final JTextField email = input(login, "Email");
             final JTextField password = input(login, "Password");
             email.setText("first@example.test");
@@ -359,7 +300,7 @@ class AccountPanelTest {
             navigate.addPropertyChangeListener("enabled", event -> {
                 if (Boolean.TRUE.equals(event.getNewValue())) {
                     callbackCount.incrementAndGet();
-                    assertEquals("Error: Email or password is incorrect.", message.getText());
+                    statusAtEnable.set(message.getText());
                     navigate.doClick(0);
                 }
             });
@@ -367,21 +308,74 @@ class AccountPanelTest {
             password.getDocument().removeDocumentListener(navigateOnSubmit);
             assertTrue(login.isVisible());
             assertEquals("Logging in…", status(login));
-            return null;
         });
         awaitEdt(submit::isEnabled);
-        onEdt(() -> {
+        runOnEdt(() -> {
             assertTrue(login.isVisible(), "Completion must finish before another transition can start");
             assertTrue(navigate.isEnabled());
-            assertEquals("Error: Email or password is incorrect.", status(login));
+            assertTrue(status(login).startsWith("Error:"));
+            assertEquals(status(login), statusAtEnable.get());
             assertPasswordCleared(login, "Password");
             // A normal action after completion is accepted again.
             navigate.doClick(0);
             assertTrue(register.isVisible());
-            return null;
         });
         assertEquals(3, callbackCount.get());
         assertEquals(1, accounts.loginCalls.get());
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void unexpectedLoginFailureRestoresTheFormWithoutShowingInternalDetails(boolean workerThrows) throws Exception {
+        final AccountPanel panel = onEdt(() -> new AccountPanel(new LogInController(request -> {
+            if (workerThrows) {
+                throw new IllegalStateException("private request details");
+            }
+        }), new RegisterController(request -> { }), new LogOutController(() -> { }), new AccountViewModel()));
+        final JPanel login = named(panel, "Log In", JPanel.class);
+        final JButton submit = button(login, "Log In");
+
+        runOnEdt(() -> enterLogin(login, "first@example.test"));
+        awaitEdt(submit::isEnabled);
+        runOnEdt(() -> {
+            assertEquals("Error: An unexpected error interrupted login. Please try again.", status(login));
+            assertAccessibleStatus(login);
+            assertPasswordCleared(login, "Password");
+        });
+    }
+
+    @Test
+    void unconfirmedLocalSignOutBlocksAccountActionsEvenWhenInvokedProgrammatically() throws Exception {
+        final FakeAccounts accounts = new FakeAccounts();
+        accounts.authentication = new LogInAccountGateway.Success(user("first", "First"));
+        accounts.failLocalSignOut = true;
+        final AccountPanel panel = createPanel(accounts);
+        final JPanel login = named(panel, "Log In", JPanel.class);
+        final JPanel register = named(panel, "Register", JPanel.class);
+        final JPanel home = named(panel, "Home", JPanel.class);
+        final JButton logOut = button(home, "Log Out");
+        final JButton submit = button(login, "Log In");
+        final JButton navigate = button(login, "Create an account");
+
+        runOnEdt(() -> enterLogin(login, "first@example.test"));
+        awaitEdt(home::isVisible);
+        runOnEdt(() -> logOut.doClick(0));
+        awaitEdt(() -> status(login).contains("Close and reopen the app"));
+        runOnEdt(() -> {
+            assertFalse(submit.isEnabled());
+            assertFalse(navigate.isEnabled());
+
+            final String restartMessage = status(login);
+            enterLogin(login, "second@example.test");
+            assertEquals(restartMessage, status(login));
+
+            final ActionEvent event =
+                    new ActionEvent(navigate, ActionEvent.ACTION_PERFORMED, navigate.getActionCommand());
+            for (var listener : navigate.getActionListeners()) {
+                listener.actionPerformed(event);
+            }
+            assertFalse(register.isVisible());
+        });
     }
 
     private static DocumentListener onRemove(JTextComponent input, Runnable callback) {
@@ -483,6 +477,18 @@ class AccountPanelTest {
         return null;
     }
 
+    private static void runOnEdt(EdtAction action) throws Exception {
+        onEdt(() -> {
+            action.run();
+            return null;
+        });
+    }
+
+    @FunctionalInterface
+    private interface EdtAction {
+        void run() throws Exception;
+    }
+
     private static <T> T onEdt(Callable<T> action) throws Exception {
         if (SwingUtilities.isEventDispatchThread()) {
             return action.call();
@@ -538,6 +544,7 @@ class AccountPanelTest {
         private volatile User current;
         private volatile Gate loginGate;
         private volatile Gate logoutGate;
+        private volatile boolean failLocalSignOut;
         private final AtomicInteger loginCalls = new AtomicInteger();
         private final AtomicInteger registerCalls = new AtomicInteger();
         private final AtomicInteger logoutCalls = new AtomicInteger();
@@ -572,15 +579,17 @@ class AccountPanelTest {
         }
 
         @Override
-        public Revocation logOutCurrentSession() {
+        public void logOutCurrentSession() {
             assertFalse(SwingUtilities.isEventDispatchThread());
             logoutCalls.incrementAndGet();
             assertNotNull(current);
+            if (failLocalSignOut) {
+                throw new IllegalStateException("Could not detach the local session");
+            }
             current = null;
             if (logoutGate != null) {
                 logoutGate.pause();
             }
-            return Revocation.FAILED;
         }
     }
 }

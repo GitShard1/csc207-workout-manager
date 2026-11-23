@@ -16,16 +16,19 @@ import java.awt.CardLayout;
 import java.util.concurrent.ExecutionException;
 
 public final class AccountPanel extends JPanel {
+    private static final System.Logger LOGGER = System.getLogger(AccountPanel.class.getName());
+
     private final CardLayout cards = new CardLayout();
     private final AccountForm loginForm;
     private final AccountForm registerForm;
-    private final MyPlansView myPlans;
+    private final HomeView home;
     private final LogInController logIn;
     private final RegisterController register;
     private final LogOutController logOut;
     private final AccountViewModel model;
     private JPanel screen;
     private boolean transitioning;
+    private boolean localSignOutUnconfirmed;
 
     public AccountPanel(LogInController logIn, RegisterController register, LogOutController logOut,
                         AccountViewModel model) {
@@ -36,10 +39,10 @@ public final class AccountPanel extends JPanel {
         setLayout(cards);
         loginForm = new AccountForm(false, this::submitLogin, this::openRegistration);
         registerForm = new AccountForm(true, this::submitRegistration, this::openLogin);
-        myPlans = new MyPlansView(this::leaveMyPlans);
+        home = new HomeView(this::signOut);
         add(loginForm, loginForm.getName());
         add(registerForm, registerForm.getName());
-        add(myPlans, myPlans.getName());
+        add(home, home.getName());
         showScreen(loginForm);
     }
 
@@ -57,7 +60,7 @@ public final class AccountPanel extends JPanel {
         if (screen instanceof AccountForm form) {
             form.focus(field);
         } else {
-            myPlans.focusLogOut();
+            home.focusLogOut();
         }
     }
 
@@ -68,7 +71,7 @@ public final class AccountPanel extends JPanel {
 
     // Swing setters can call listeners synchronously. Guard from the first mutation through the committed UI.
     private boolean beginTransition(JPanel expected) {
-        if (transitioning || screen != expected) {
+        if (transitioning || localSignOutUnconfirmed || screen != expected) {
             return false;
         }
         transitioning = true;
@@ -97,8 +100,8 @@ public final class AccountPanel extends JPanel {
 
     private void submitLogin() {
         if (beginTransition(loginForm)) {
-            final String email = loginForm.text(Field.EMAIL);
-            final String password = loginForm.takePassword(Field.PASSWORD);
+            final String email = loginForm.email();
+            final String password = loginForm.takePassword();
             showBusy(loginForm, "Logging in…");
             runAction(loginForm, false, () -> logIn.logIn(email, password));
         }
@@ -106,19 +109,19 @@ public final class AccountPanel extends JPanel {
 
     private void submitRegistration() {
         if (beginTransition(registerForm)) {
-            final String email = registerForm.text(Field.EMAIL);
-            final String username = registerForm.text(Field.USERNAME);
-            final String displayName = registerForm.text(Field.DISPLAY_NAME);
-            final String password = registerForm.takePassword(Field.PASSWORD);
-            final String confirmation = registerForm.takePassword(Field.CONFIRM_PASSWORD);
+            final String email = registerForm.email();
+            final String username = registerForm.username();
+            final String displayName = registerForm.displayName();
+            final String password = registerForm.takePassword();
+            final String confirmation = registerForm.takeConfirmation();
             showBusy(registerForm, "Registering…");
             runAction(registerForm, false,
                     () -> register.register(email, username, displayName, password, confirmation));
         }
     }
 
-    private void leaveMyPlans() {
-        if (beginTransition(myPlans)) {
+    private void signOut() {
+        if (beginTransition(home)) {
             resetAccountScreens();
             showBusy(loginForm, "Signing out…");
             showScreen(loginForm);
@@ -129,7 +132,7 @@ public final class AccountPanel extends JPanel {
     private void resetAccountScreens() {
         loginForm.reset();
         registerForm.reset();
-        myPlans.clearAccount();
+        home.clearAccount();
     }
 
     private static void showBusy(AccountForm form, String message) {
@@ -156,10 +159,18 @@ public final class AccountPanel extends JPanel {
                 Outcome result = null;
                 try {
                     result = get();
-                } catch (InterruptedException exception) {
+                    final boolean expected = signingOut ? result == SignedOut.SIGNED_OUT
+                            : result instanceof SignedIn || result instanceof Error;
+                    if (!expected) {
+                        LOGGER.log(System.Logger.Level.ERROR, "Account action returned no matching outcome.");
+                        result = null;
+                    }
+                } catch (InterruptedException ignored) {
                     Thread.currentThread().interrupt();
-                } catch (ExecutionException ignored) {
-                    // Do not expose internal errors or request data in the UI.
+                    LOGGER.log(System.Logger.Level.WARNING, "Waiting for the account action was interrupted.");
+                } catch (ExecutionException failure) {
+                    LOGGER.log(System.Logger.Level.ERROR, "Account action failed ({0}).",
+                            failure.getCause().getClass().getName());
                 }
                 finishAction(form, signingOut, result);
             }
@@ -171,20 +182,24 @@ public final class AccountPanel extends JPanel {
             form.clearMessages();
             Field focus = Field.EMAIL;
             if (signingOut) {
-                // The Login card is already visible; no logout result can restore the previous account.
                 if (result == SignedOut.SIGNED_OUT) {
                     form.showStatus("You’re signed out.");
+                } else {
+                    localSignOutUnconfirmed = true;
+                    form.showError(new Error(Field.FORM,
+                            "We couldn't confirm sign-out. Close and reopen the app before logging in again."));
+                    return;
                 }
             } else if (result instanceof SignedIn profile) {
                 resetAccountScreens();
-                myPlans.showFor(profile);
-                showScreen(myPlans);
+                home.showFor(profile);
+                showScreen(home);
             } else if (result instanceof Error error) {
                 focus = form.showError(error);
             } else {
                 final String message = form == registerForm
-                        ? "We couldn't confirm registration. Try logging in before registering again."
-                        : "We couldn't log you in right now. Please try again.";
+                        ? "Registration was interrupted. Try logging in before registering again."
+                        : "An unexpected error interrupted login. Please try again.";
                 focus = form.showError(new Error(Field.FORM, message));
             }
             form.setBusy(false);

@@ -11,7 +11,6 @@ import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -27,11 +26,24 @@ final class SupabaseClientTest {
                 new Properties()));
     }
 
+    @Test
+    void configurationRejectsPartialOverridesInsteadOfMixingProjects() {
+        final var missingKey = assertThrows(SupabaseClient.ConfigurationException.class,
+                () -> SupabaseClient.fromConfiguration(Map.of(URL, "https://another.supabase.co"), defaults()));
+        assertEquals("Set SUPABASE_PUBLISHABLE_KEY too, or use the bundled Supabase settings.",
+                missingKey.getMessage());
+
+        final var missingUrl = assertThrows(SupabaseClient.ConfigurationException.class,
+                () -> SupabaseClient.fromConfiguration(Map.of(KEY, "sb_publishable_another"), defaults()));
+        assertEquals("Set SUPABASE_URL too, or use the bundled Supabase settings.", missingUrl.getMessage());
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {"sb_secret_test-fixture", "eyJrole.service_role.signature", "", "sb_publishable_"})
     void configurationRejectsPrivilegedOrInvalidOverridesWithoutExposingValues(String key) {
         final IllegalArgumentException failure = assertThrows(IllegalArgumentException.class,
-                () -> SupabaseClient.fromConfiguration(Map.of(KEY, key), defaults()));
+                () -> SupabaseClient.fromConfiguration(
+                        Map.of(URL, "https://fixture.supabase.co", KEY, key), defaults()));
         assertEquals("SUPABASE_PUBLISHABLE_KEY must be a Supabase publishable key.", failure.getMessage());
     }
 
@@ -43,8 +55,8 @@ final class SupabaseClientTest {
     })
     void configurationOnlyAcceptsAnHttpsSupabaseOrigin(String url) {
         final IllegalArgumentException failure = assertThrows(IllegalArgumentException.class,
-                () -> SupabaseClient.fromConfiguration(Map.of(URL, url), defaults()));
-        assertFalse(failure.getMessage().contains(url));
+                () -> SupabaseClient.fromConfiguration(Map.of(URL, url, KEY, LoopbackSupabase.API_KEY), defaults()));
+        assertEquals("SUPABASE_URL must be an HTTPS Supabase project origin.", failure.getMessage());
     }
 
     @Test

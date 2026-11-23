@@ -7,7 +7,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.Strictness;
 import entity.User;
-import use_case.account.CurrentUserReader;
+import use_case.account.AccountProfileRules;
 import use_case.login.LogInAccountGateway;
 import use_case.logout.LogOutSessionGateway;
 import use_case.register.RegisterAccountGateway;
@@ -20,14 +20,11 @@ import java.net.http.HttpResponse;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.regex.Pattern;
 
 public final class SupabaseAccountDao implements RegisterAccountGateway, LogInAccountGateway,
-        LogOutSessionGateway, CurrentUserReader {
+        LogOutSessionGateway {
     private static final Gson JSON = new GsonBuilder().setStrictness(Strictness.STRICT).create();
-    private static final Pattern USERNAME = Pattern.compile("[a-z0-9_]{3,24}");
-    private static final Pattern BLANK_DISPLAY_NAME =
-            Pattern.compile("[\\s\\p{javaWhitespace}]*", Pattern.UNICODE_CHARACTER_CLASS);
+    private static final System.Logger LOGGER = System.getLogger(SupabaseAccountDao.class.getName());
 
     private final SupabaseClient client;
     private volatile SignedIn signedIn;
@@ -36,8 +33,7 @@ public final class SupabaseAccountDao implements RegisterAccountGateway, LogInAc
         this.client = Objects.requireNonNull(client);
     }
 
-    @Override
-    public Optional<User> currentUser() {
+    Optional<User> currentUser() {
         final SignedIn current = signedIn;
         return current == null ? Optional.empty() : Optional.of(current.user);
     }
@@ -70,7 +66,7 @@ public final class SupabaseAccountDao implements RegisterAccountGateway, LogInAc
             case ESTABLISHED -> new RegisterAccountGateway.Success(signedIn.user);
             case INVALID_AUTH_RESPONSE -> RegisterAccountGateway.Failure.SIGNUP_UNCERTAIN;
             case NO_USABLE_SESSION -> RegisterAccountGateway.Failure.NO_USABLE_SESSION;
-            case PROFILE_FAILURE -> RegisterAccountGateway.Failure.RETRYABLE_FAILURE;
+            case PROFILE_FAILURE -> RegisterAccountGateway.Failure.ACCOUNT_CREATED_PROFILE_UNAVAILABLE;
         };
     }
 
@@ -86,39 +82,45 @@ public final class SupabaseAccountDao implements RegisterAccountGateway, LogInAc
             return LogInAccountGateway.Failure.RETRYABLE_FAILURE;
         }
 
-        final JsonObject result = object(parse(auth.body()));
         if (auth.statusCode() != 200) {
-            if (isClientError(auth.statusCode())) {
-                return switch (string(result, "error_code")) {
-                    case "invalid_credentials", "user_not_found" -> LogInAccountGateway.Failure.BAD_CREDENTIALS;
-                    case "email_not_confirmed" -> LogInAccountGateway.Failure.NO_USABLE_SESSION;
-                    case null, default -> LogInAccountGateway.Failure.RETRYABLE_FAILURE;
-                };
-            }
-            return LogInAccountGateway.Failure.RETRYABLE_FAILURE;
+            return loginFailure(auth);
         }
-        return switch (establishSession(result)) {
+        return switch (establishSession(object(parse(auth.body())))) {
             case ESTABLISHED -> new LogInAccountGateway.Success(signedIn.user);
             case NO_USABLE_SESSION -> LogInAccountGateway.Failure.NO_USABLE_SESSION;
             case INVALID_AUTH_RESPONSE, PROFILE_FAILURE -> LogInAccountGateway.Failure.RETRYABLE_FAILURE;
         };
     }
 
+    private static LogInAccountGateway.Failure loginFailure(HttpResponse<String> auth) {
+        if (!isClientError(auth.statusCode())) {
+            return LogInAccountGateway.Failure.RETRYABLE_FAILURE;
+        }
+        return switch (string(object(parse(auth.body())), "error_code")) {
+            case "invalid_credentials", "user_not_found" -> LogInAccountGateway.Failure.BAD_CREDENTIALS;
+            case "email_not_confirmed" -> LogInAccountGateway.Failure.NO_USABLE_SESSION;
+            case null, default -> LogInAccountGateway.Failure.RETRYABLE_FAILURE;
+        };
+    }
+
     @Override
-    public Revocation logOutCurrentSession() {
+    public void logOutCurrentSession() {
         final SignedIn previous = signedIn;
         signedIn = null;
         if (previous == null) {
-            return Revocation.NOT_NEEDED;
+            return;
         }
         try {
-            final HttpResponse<String> reply = client.post("/auth/v1/logout?scope=local", null, previous.accessToken);
-            return reply.statusCode() == 204 ? Revocation.REVOKED : Revocation.FAILED;
+            final var reply = client.post("/auth/v1/logout?scope=local", null, previous.accessToken);
+            if (reply.statusCode() != 204) {
+                LOGGER.log(System.Logger.Level.WARNING, "Remote session revocation returned HTTP {0}.",
+                        reply.statusCode());
+            }
         } catch (InterruptedException ignored) {
             Thread.currentThread().interrupt();
-            return Revocation.FAILED;
+            LOGGER.log(System.Logger.Level.WARNING, "Remote session revocation was interrupted.");
         } catch (IOException ignored) {
-            return Revocation.FAILED;
+            LOGGER.log(System.Logger.Level.WARNING, "Could not confirm remote session revocation.");
         }
     }
 
@@ -127,22 +129,22 @@ public final class SupabaseAccountDao implements RegisterAccountGateway, LogInAc
         // GoTrue rolls back this specific insert failure but hides the failed constraint.
         if (status == 500 && "unexpected_failure".equals(code)
                 && "Database error saving new user".equals(string(response, "msg"))) {
-            return username != null && USERNAME.matcher(username).matches() && usernameUnavailable(username)
+            return AccountProfileRules.isCanonicalUsername(username) && usernameUnavailable(username)
                     ? RegisterAccountGateway.Failure.USERNAME_TAKEN : RegisterAccountGateway.Failure.RETRYABLE_FAILURE;
         }
         if (status == 408 || status >= 500) {
             return RegisterAccountGateway.Failure.SIGNUP_UNCERTAIN;
         }
-        if (isClientError(status)) {
-            return switch (code) {
-                case "email_address_invalid" -> RegisterAccountGateway.Failure.INVALID_EMAIL;
-                case "weak_password" -> RegisterAccountGateway.Failure.PASSWORD_REJECTED;
-                case "user_already_exists", "email_exists", "validation_failed" ->
-                        RegisterAccountGateway.Failure.ACCOUNT_UNAVAILABLE;
-                case null, default -> RegisterAccountGateway.Failure.RETRYABLE_FAILURE;
-            };
+        if (!isClientError(status)) {
+            return RegisterAccountGateway.Failure.RETRYABLE_FAILURE;
         }
-        return RegisterAccountGateway.Failure.RETRYABLE_FAILURE;
+        return switch (code) {
+            case "email_address_invalid" -> RegisterAccountGateway.Failure.INVALID_EMAIL;
+            case "weak_password" -> RegisterAccountGateway.Failure.PASSWORD_REJECTED;
+            case "user_already_exists", "email_exists", "validation_failed" ->
+                    RegisterAccountGateway.Failure.ACCOUNT_UNAVAILABLE;
+            case null, default -> RegisterAccountGateway.Failure.RETRYABLE_FAILURE;
+        };
     }
 
     private boolean usernameUnavailable(String username) {
@@ -203,8 +205,8 @@ public final class SupabaseAccountDao implements RegisterAccountGateway, LogInAc
         final JsonObject profile = object(rows.getAsJsonArray().get(0));
         final String username = string(profile, "username");
         final String displayName = string(profile, "display_name");
-        if (!id.equals(userId(profile)) || username == null || !USERNAME.matcher(username).matches()
-                || displayName == null || BLANK_DISPLAY_NAME.matcher(displayName).matches()) {
+        if (!id.equals(userId(profile)) || !AccountProfileRules.isCanonicalUsername(username)
+                || !AccountProfileRules.hasDisplayName(displayName)) {
             return null;
         }
         return new User(id, username, displayName);

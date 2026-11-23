@@ -16,6 +16,7 @@ public sealed interface RegisterResponse {
         ACCOUNT_UNAVAILABLE,
         SIGNUP_UNCERTAIN,
         NO_USABLE_SESSION,
+        ACCOUNT_CREATED_PROFILE_UNAVAILABLE,
         RETRYABLE_FAILURE
     }
 }

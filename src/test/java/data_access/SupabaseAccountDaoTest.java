@@ -10,7 +10,6 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import use_case.login.LogInAccountGateway;
-import use_case.logout.LogOutSessionGateway;
 import use_case.register.RegisterAccountGateway;
 
 import java.io.IOException;
@@ -69,7 +68,7 @@ final class SupabaseAccountDaoTest {
         assertProfile(result.user(), FIRST_ID, USERNAME, DISPLAY_NAME);
 
         final var signup = server.takeCall();
-        assertCall(signup, "POST", "/auth/v1/signup", null);
+        assertSignupCall(signup);
         assertCredentials(signup);
         final var metadata = JsonParser.parseString(signup.body()).getAsJsonObject().getAsJsonObject("data");
         assertEquals(USERNAME, metadata.get("username").getAsString());
@@ -90,17 +89,19 @@ final class SupabaseAccountDaoTest {
 
         assertInstanceOf(LogInAccountGateway.Success.class, dao.logIn(EMAIL, PASSWORD));
         assertTrue(other.currentUser().isEmpty());
-        assertEquals(LogOutSessionGateway.Revocation.NOT_NEEDED, other.logOutCurrentSession());
+        other.logOutCurrentSession();
         assertInstanceOf(LogInAccountGateway.Success.class, other.logIn(EMAIL, PASSWORD));
         assertEquals(FIRST_ID, dao.currentUser().orElseThrow().getUserID());
         assertProfile(other.currentUser().orElseThrow(), SECOND_ID, "second_user", "Second User");
-        assertEquals(LogOutSessionGateway.Revocation.REVOKED, dao.logOutCurrentSession());
+        dao.logOutCurrentSession();
         assertTrue(dao.currentUser().isEmpty());
         assertTrue(other.currentUser().isPresent());
-        assertEquals(LogOutSessionGateway.Revocation.NOT_NEEDED, dao.logOutCurrentSession());
-        assertEquals(LogOutSessionGateway.Revocation.REVOKED, other.logOutCurrentSession());
+        dao.logOutCurrentSession();
+        other.logOutCurrentSession();
 
-        assertLoginCall(server.takeCall());
+        final var login = server.takeCall();
+        assertLoginCall(login);
+        assertCredentials(login);
         assertProfileCall(server.takeCall(), FIRST_ID, FIRST_TOKEN);
         assertLoginCall(server.takeCall());
         assertProfileCall(server.takeCall(), SECOND_ID, SECOND_TOKEN);
@@ -118,7 +119,7 @@ final class SupabaseAccountDaoTest {
         assertEquals(RegisterAccountGateway.Failure.SIGNUP_UNCERTAIN, register());
         assertTrue(dao.currentUser().isEmpty());
         assertLoginCall(server.takeCall());
-        assertCall(server.takeCall(), "POST", "/auth/v1/signup", null);
+        assertSignupCall(server.takeCall());
         assertNull(server.unexpectedCall());
     }
 
@@ -129,7 +130,7 @@ final class SupabaseAccountDaoTest {
         assertEquals(RegisterAccountGateway.Failure.NO_USABLE_SESSION, register());
         assertEquals(LogInAccountGateway.Failure.NO_USABLE_SESSION, dao.logIn(EMAIL, PASSWORD));
         assertTrue(dao.currentUser().isEmpty());
-        assertCall(server.takeCall(), "POST", "/auth/v1/signup", null);
+        assertSignupCall(server.takeCall());
         assertLoginCall(server.takeCall());
         assertNull(server.unexpectedCall());
     }
@@ -149,27 +150,27 @@ final class SupabaseAccountDaoTest {
         server.enqueue(200, body);
         assertEquals(LogInAccountGateway.Failure.RETRYABLE_FAILURE, dao.logIn(EMAIL, PASSWORD));
         assertTrue(dao.currentUser().isEmpty());
-        assertEquals(LogOutSessionGateway.Revocation.NOT_NEEDED, dao.logOutCurrentSession());
+        dao.logOutCurrentSession();
         assertLoginCall(server.takeCall());
         assertProfileCall(server.takeCall(), FIRST_ID, FIRST_TOKEN);
         assertNull(server.unexpectedCall());
     }
 
     @Test
-    void signupWithProfileServiceFailureIsRetryableWithoutPublishingTheSession() throws InterruptedException {
+    void signupReportsCreatedAccountWithoutPublishingAnIncompleteSession() throws InterruptedException {
         server.enqueue(200, session(FIRST_ID, FIRST_TOKEN));
         server.enqueue(503, "{\"message\":\"fixture provider detail\"}");
-        assertEquals(RegisterAccountGateway.Failure.RETRYABLE_FAILURE, register());
+        assertEquals(RegisterAccountGateway.Failure.ACCOUNT_CREATED_PROFILE_UNAVAILABLE, register());
         assertTrue(dao.currentUser().isEmpty());
-        assertCall(server.takeCall(), "POST", "/auth/v1/signup", null);
+        assertSignupCall(server.takeCall());
         assertProfileCall(server.takeCall(), FIRST_ID, FIRST_TOKEN);
         assertNull(server.unexpectedCall());
     }
 
     @Test
-    void loginDoesNotExposeProviderDetailsOrDistinguishUnknownEmailFromBadPassword() throws InterruptedException {
+    void loginMapsUnknownEmailAndBadPasswordToTheSameFailure() throws InterruptedException {
         server.enqueue(400, "{\"error_code\":\"invalid_credentials\",\"msg\":\"provider: wrong password\"}");
-        server.enqueue(400, "{\"error_code\":\"invalid_credentials\",\"msg\":\"provider: unknown email\"}");
+        server.enqueue(400, "{\"error_code\":\"user_not_found\",\"msg\":\"provider: unknown email\"}");
         server.enqueue(429, "{\"error_code\":\"over_request_rate_limit\"}");
         server.enqueue(400, "{\"error_code\":\"email_not_confirmed\"}");
         assertEquals(LogInAccountGateway.Failure.BAD_CREDENTIALS, dao.logIn(EMAIL, PASSWORD));
@@ -197,7 +198,7 @@ final class SupabaseAccountDaoTest {
                 """.formatted(code));
         assertEquals(expected, register());
         assertTrue(dao.currentUser().isEmpty());
-        assertCall(server.takeCall(), "POST", "/auth/v1/signup", null);
+        assertSignupCall(server.takeCall());
         assertNull(server.unexpectedCall());
     }
 
@@ -212,18 +213,18 @@ final class SupabaseAccountDaoTest {
         assertEquals(RegisterAccountGateway.Failure.SIGNUP_UNCERTAIN, register());
         assertTrue(dao.currentUser().isEmpty());
         for (int index = 0; index < 3; index++) {
-            assertCall(server.takeCall(), "POST", "/auth/v1/signup", null);
+            assertSignupCall(server.takeCall());
         }
         assertNull(server.unexpectedCall());
     }
 
     @Test
-    void signupWriteTimeoutIsUncertainAndSendsOnlyOneSignup() throws InterruptedException {
+    void signupResponseBodyTimeoutLeavesSignupUncertainWithoutRetrying() throws InterruptedException {
         dao = new SupabaseAccountDao(server.client(Duration.ofMillis(700)));
-        server.stallBody(200, session(FIRST_ID, FIRST_TOKEN), () -> { });
+        server.stallBody(200, session(FIRST_ID, FIRST_TOKEN));
         assertEquals(RegisterAccountGateway.Failure.SIGNUP_UNCERTAIN, register());
         assertTrue(dao.currentUser().isEmpty());
-        assertCall(server.takeCall(), "POST", "/auth/v1/signup", null);
+        assertSignupCall(server.takeCall());
         assertNull(server.unexpectedCall());
     }
 
@@ -233,7 +234,7 @@ final class SupabaseAccountDaoTest {
         server.enqueue(200, "\n false \t");
         assertEquals(RegisterAccountGateway.Failure.USERNAME_TAKEN, register());
         assertTrue(dao.currentUser().isEmpty());
-        assertCall(server.takeCall(), "POST", "/auth/v1/signup", null);
+        assertSignupCall(server.takeCall());
         final var rpc = server.takeCall();
         assertCall(rpc, "POST", "/rest/v1/rpc/username_is_available", null);
         final var body = JsonParser.parseString(rpc.body()).getAsJsonObject();
@@ -250,7 +251,7 @@ final class SupabaseAccountDaoTest {
         server.enqueue(200, value);
         assertEquals(RegisterAccountGateway.Failure.RETRYABLE_FAILURE, register());
         assertTrue(dao.currentUser().isEmpty());
-        assertCall(server.takeCall(), "POST", "/auth/v1/signup", null);
+        assertSignupCall(server.takeCall());
         assertCall(server.takeCall(), "POST", "/rest/v1/rpc/username_is_available", null);
         assertNull(server.unexpectedCall());
     }
@@ -261,7 +262,7 @@ final class SupabaseAccountDaoTest {
         server.enqueue(403, "false");
         assertEquals(RegisterAccountGateway.Failure.RETRYABLE_FAILURE, register());
         assertTrue(dao.currentUser().isEmpty());
-        assertCall(server.takeCall(), "POST", "/auth/v1/signup", null);
+        assertSignupCall(server.takeCall());
         assertCall(server.takeCall(), "POST", "/rest/v1/rpc/username_is_available", null);
         assertNull(server.unexpectedCall());
     }
@@ -275,10 +276,10 @@ final class SupabaseAccountDaoTest {
                 () -> clearedWhenRequestArrived.set(dao.currentUser().isEmpty()));
         assertInstanceOf(LogInAccountGateway.Success.class, dao.logIn(EMAIL, PASSWORD));
         assertFalse(dao.currentUser().isEmpty());
-        assertEquals(LogOutSessionGateway.Revocation.FAILED, dao.logOutCurrentSession());
+        dao.logOutCurrentSession();
         assertTrue(clearedWhenRequestArrived.get());
         assertTrue(dao.currentUser().isEmpty());
-        assertEquals(LogOutSessionGateway.Revocation.NOT_NEEDED, dao.logOutCurrentSession());
+        dao.logOutCurrentSession();
         assertLoginCall(server.takeCall());
         assertProfileCall(server.takeCall(), FIRST_ID, FIRST_TOKEN);
         assertLogoutCall(server.takeCall(), FIRST_TOKEN);
@@ -290,9 +291,9 @@ final class SupabaseAccountDaoTest {
         dao = new SupabaseAccountDao(server.client(Duration.ofMillis(700)));
         server.enqueue(200, session(FIRST_ID, FIRST_TOKEN));
         server.enqueue(200, profile(FIRST_ID, USERNAME, DISPLAY_NAME));
-        server.stallBody(500, "{}", () -> { });
+        server.stallBody(500, "{}");
         assertInstanceOf(LogInAccountGateway.Success.class, dao.logIn(EMAIL, PASSWORD));
-        assertEquals(LogOutSessionGateway.Revocation.FAILED, dao.logOutCurrentSession());
+        dao.logOutCurrentSession();
         assertTrue(dao.currentUser().isEmpty());
         assertLoginCall(server.takeCall());
         assertProfileCall(server.takeCall(), FIRST_ID, FIRST_TOKEN);
@@ -326,7 +327,10 @@ final class SupabaseAccountDaoTest {
 
     private static void assertLoginCall(LoopbackSupabase.Call call) {
         assertCall(call, "POST", "/auth/v1/token?grant_type=password", null);
-        assertCredentials(call);
+    }
+
+    private static void assertSignupCall(LoopbackSupabase.Call call) {
+        assertCall(call, "POST", "/auth/v1/signup", null);
     }
 
     private static void assertProfileCall(LoopbackSupabase.Call call, UUID id, String token) {

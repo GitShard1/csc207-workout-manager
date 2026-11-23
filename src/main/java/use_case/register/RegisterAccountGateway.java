@@ -30,7 +30,7 @@ public interface RegisterAccountGateway {
         SIGNUP_UNCERTAIN,
         // The Auth response did not establish a usable session.
         NO_USABLE_SESSION,
-        // Service or profile-load failure; no session was published.
+        ACCOUNT_CREATED_PROFILE_UNAVAILABLE,
         RETRYABLE_FAILURE
     }
 }

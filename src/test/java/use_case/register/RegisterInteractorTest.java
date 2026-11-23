@@ -15,7 +15,6 @@ import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
 
 class RegisterInteractorTest {
     private static final RegisterRequest VALID =
@@ -49,7 +48,6 @@ class RegisterInteractorTest {
 
         assertEquals(List.of(expected), responses);
         assertEquals(0, gateway.calls);
-        assertNull(gateway.signedIn);
     }
 
     private static Stream<Arguments> invalidRequests() {
@@ -86,17 +84,16 @@ class RegisterInteractorTest {
         "ACCOUNT_UNAVAILABLE, ACCOUNT_UNAVAILABLE",
         "SIGNUP_UNCERTAIN, SIGNUP_UNCERTAIN",
         "NO_USABLE_SESSION, NO_USABLE_SESSION",
+        "ACCOUNT_CREATED_PROFILE_UNAVAILABLE, ACCOUNT_CREATED_PROFILE_UNAVAILABLE",
         "RETRYABLE_FAILURE, RETRYABLE_FAILURE"
     })
-    void reportsSafeFailureWithoutPublishingAnAccount(RegisterAccountGateway.Failure result,
-                                                       RegisterResponse.Failure expected) {
+    void presentsGatewayFailure(RegisterAccountGateway.Failure result, RegisterResponse.Failure expected) {
         gateway.result = result;
 
         interactor.execute(VALID);
 
         assertEquals(List.of(expected), responses);
         assertEquals(1, gateway.calls);
-        assertNull(gateway.signedIn);
     }
 
     @Test
@@ -114,8 +111,6 @@ class RegisterInteractorTest {
         private String username;
         private String displayName;
         private String password;
-        private User signedIn;
-
         @Override
         public Result register(String email, String username, String displayName, String password) {
             calls++;
@@ -123,9 +118,6 @@ class RegisterInteractorTest {
             this.username = username;
             this.displayName = displayName;
             this.password = password;
-            if (result instanceof Success success) {
-                signedIn = success.user();
-            }
             return result;
         }
     }

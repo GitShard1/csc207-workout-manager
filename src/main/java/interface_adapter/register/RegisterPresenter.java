@@ -34,9 +34,11 @@ public final class RegisterPresenter implements RegisterOutputBoundary {
                 case SIGNUP_UNCERTAIN -> new Error(Field.FORM,
                         "We couldn't confirm registration. Try logging in before registering again.");
                 case NO_USABLE_SESSION -> new Error(Field.FORM,
-                        "Registration didn't log you in. If asked to confirm your email, do that before logging in.");
+                        "Confirm your email if prompted, then log in.");
+                case ACCOUNT_CREATED_PROFILE_UNAVAILABLE -> new Error(Field.FORM,
+                        "Your account was created, but we couldn't load your profile. Try logging in.");
                 case RETRYABLE_FAILURE -> new Error(Field.FORM,
-                        "We couldn't finish registration. Try logging in first, or try again later.");
+                        "We couldn't complete registration. Please try again later.");
             };
         });
     }

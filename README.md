@@ -51,11 +51,39 @@ A workout companion app that logs user exercises as well as having social capabi
 
 ### Register an Account
 
-A new user enters an email address, username, display name, password, and password confirmation. The system validates the details, creates the account, and signs the user in.
+**Actor:** New user. **Precondition:** Signed out. **Trigger:** The user opens registration.
+
+**Success outcome:** The account and profile are saved, and the user is signed in on Home.
+
+1. The user submits an email address, username, display name, password, and password confirmation.
+2. The system validates the details and creates the account.
+3. The system loads the profile and opens Home.
+
+**Extensions:** At step 2, the user can correct rejected details; if account creation cannot be confirmed, they should try logging in before registering again. At step 3, the user stays signed out if the profile cannot be loaded or email confirmation is required, and can log in later.
 
 ### Log In
 
-A registered user enters their email address and password. If the credentials are valid, the system loads their profile and opens My Plans.
+**Actor:** Registered user. **Precondition:** Signed out. **Trigger:** The user submits their login details.
+
+**Success outcome:** The user is signed in on Home, the account landing screen.
+
+1. The user provides their email address and password.
+2. The system verifies the credentials and loads the profile.
+3. Home shows the user's display name and username. Workout features are not available yet.
+
+**Extensions:** At step 2, invalid credentials, pending email confirmation, or a service failure leave the user signed out. The app explains what they can try next.
+
+### Log Out
+
+**Actor:** Signed-in user. **Precondition:** Home is open. **Trigger:** The user selects Log Out.
+
+**Success outcome:** The app no longer holds the signed-in profile or session, and Log In is visible.
+
+1. The user requests to log out.
+2. The app clears the account details from the screen and returns to Log In.
+3. The app ends the local session and attempts to revoke that session with the account service.
+
+**Extension:** At step 3, a remote revocation failure does not restore the local session.
 
 ### Find an Exercise
 
@@ -96,7 +124,7 @@ The user opens a friend's profile and copies one of their plans. The system save
 | Team Member | MVP Use Case |
 |-------------|--------------|
 | Jirat | Use Case |
-| Demeng | Use Case |
+| Demeng | Register an Account, Log In, Log Out |
 | Eric | Use Case |
 | David | Use Case |
 | Amgalan | Use Case |
@@ -177,9 +205,11 @@ Instance Attributes:
 
 ## API Usage
 
-- [Supabase Auth](https://supabase.com/docs/guides/auth/passwords) handles signup, login, and logout. The hosted settings endpoint responded successfully, but the account flows have not been tested against the hosted project.
-- [Supabase Data REST](https://supabase.com/docs/guides/api) loads the signed-in user's profile. Authenticated profile reads have not been tested against the hosted project.
-- [WorkoutX](https://workoutxapp.com/docs.html) is planned for exercise lookup and has not been integrated on this branch.
+- [Supabase Auth](https://supabase.com/docs/guides/auth/passwords) handles signup, login, and logout.
+- [Supabase Data REST](https://supabase.com/docs/guides/api) loads the signed-in user's profile.
+- [WorkoutX](https://workoutxapp.com/docs.html) is planned for exercise lookup.
+
+The hosted Supabase Auth settings endpoint responded successfully. Hosted account flows and authenticated profile reads remain unverified.
 
 ---
 
@@ -209,10 +239,4 @@ With JDK 25 on your `PATH`, run this from the repository root, or run `app.Worko
 ./mvnw compile org.codehaus.mojo:exec-maven-plugin:3.6.3:exec -Dexec.executable=java '-Dexec.args=-cp %classpath app.WorkoutManagerApp'
 ```
 
-The app uses the team's demo Supabase project by default. To use another isolated demo project, apply the [profile migration](supabase/migrations/20261123190718_account_profiles.sql), enable email signup with an 8-character password minimum, and disable email confirmation for automatic sign-in after signup. Set `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` in the launcher environment.
-
----
-
-## Notes
-
-[Any additional project information.]
+The app uses the team's demo Supabase project by default. To use another isolated demo project, apply the [profile migration](supabase/migrations/20261123190718_account_profiles.sql), enable email signup with an 8-character password minimum, and disable email confirmation for automatic sign-in after signup. Set both `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` in the launcher environment. Leave both unset to use the demo project.

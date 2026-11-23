@@ -40,23 +40,29 @@ public final class SupabaseClient {
                 defaults.load(resource);
             }
         } catch (IOException | IllegalArgumentException ignored) {
-            throw new IllegalStateException("Cannot load Supabase defaults.");
+            throw new ConfigurationException("Cannot load the bundled Supabase settings.");
         }
         return fromConfiguration(System.getenv(), defaults);
     }
 
     static SupabaseClient fromConfiguration(Map<String, String> environment, Properties defaults) {
+        final boolean urlOverridden = environment.containsKey(URL_SETTING);
+        final boolean keyOverridden = environment.containsKey(KEY_SETTING);
+        if (urlOverridden != keyOverridden) {
+            final String missing = urlOverridden ? KEY_SETTING : URL_SETTING;
+            throw new ConfigurationException("Set " + missing + " too, or use the bundled Supabase settings.");
+        }
         final String url = environment.getOrDefault(URL_SETTING, defaults.getProperty(URL_SETTING, ""));
         final String key = environment.getOrDefault(KEY_SETTING, defaults.getProperty(KEY_SETTING, ""));
         if (!PROJECT_URL.matcher(url).matches()) {
-            throw new IllegalArgumentException("SUPABASE_URL must be an HTTPS Supabase project origin.");
+            throw new ConfigurationException("SUPABASE_URL must be an HTTPS Supabase project origin.");
         }
         return new SupabaseClient(URI.create(url), key, CONNECT_TIMEOUT, REQUEST_TIMEOUT);
     }
 
     SupabaseClient(URI projectUrl, String publishableKey, Duration connectTimeout, Duration requestTimeout) {
         if (!PUBLISHABLE_KEY.matcher(publishableKey).matches()) {
-            throw new IllegalArgumentException("SUPABASE_PUBLISHABLE_KEY must be a Supabase publishable key.");
+            throw new ConfigurationException("SUPABASE_PUBLISHABLE_KEY must be a Supabase publishable key.");
         }
         this.projectUrl = projectUrl;
         this.publishableKey = publishableKey;
@@ -116,9 +122,13 @@ public final class SupabaseClient {
             }
             throw new IOException("Supabase request failed.");
         } finally {
-            if (!exchange.isDone()) {
-                exchange.cancel(true);
-            }
+            exchange.cancel(true);
+        }
+    }
+
+    public static final class ConfigurationException extends IllegalArgumentException {
+        private ConfigurationException(String message) {
+            super(message);
         }
     }
 }
