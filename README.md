@@ -177,11 +177,9 @@ Instance Attributes:
 
 ## API Usage
 
-Name: WORKOUTX
-
-Documentation: https://workoutxapp.com/docs.html
-
-How we are using it: The user can select the exercises they want from the API and it provides back the corresponding description and video
+- [Supabase Auth](https://supabase.com/docs/guides/auth/passwords) handles signup, login, and logout. The hosted settings endpoint responded successfully, but the account flows have not been tested against the hosted project.
+- [Supabase Data REST](https://supabase.com/docs/guides/api) loads the signed-in user's profile. Authenticated profile reads have not been tested against the hosted project.
+- [WorkoutX](https://workoutxapp.com/docs.html) is planned for exercise lookup and has not been integrated on this branch.
 
 ---
 
@@ -205,7 +203,13 @@ Tests belong in `src/test/java`. GitHub Actions runs the checks on pull requests
 
 ## How to Run
 
-No application entry point has been implemented yet.
+With JDK 25 on your `PATH`, run this from the repository root, or run `app.WorkoutManagerApp` from your Maven-enabled IDE:
+
+```sh
+./mvnw compile org.codehaus.mojo:exec-maven-plugin:3.6.3:exec -Dexec.executable=java '-Dexec.args=-cp %classpath app.WorkoutManagerApp'
+```
+
+The app uses the team's demo Supabase project by default. To use another isolated demo project, apply the [profile migration](supabase/migrations/20261123190718_account_profiles.sql), enable email signup with an 8-character password minimum, and disable email confirmation for automatic sign-in after signup. Set `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` in the launcher environment.
 
 ---
 
