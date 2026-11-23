@@ -50,6 +50,8 @@ public final class RegisterInteractor implements RegisterInputBoundary {
             case RegisterAccountGateway.Success success ->
                     new RegisterResponse.Success(AccountProfile.from(success.user()));
             case RegisterAccountGateway.Failure failure -> switch (failure) {
+                case INVALID_EMAIL -> RegisterResponse.Failure.INVALID_EMAIL;
+                case PASSWORD_REJECTED -> RegisterResponse.Failure.PASSWORD_REJECTED;
                 case USERNAME_TAKEN -> RegisterResponse.Failure.USERNAME_TAKEN;
                 case ACCOUNT_UNAVAILABLE -> RegisterResponse.Failure.ACCOUNT_UNAVAILABLE;
                 case SIGNUP_UNCERTAIN -> RegisterResponse.Failure.SIGNUP_UNCERTAIN;

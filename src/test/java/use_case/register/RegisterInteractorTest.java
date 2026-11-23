@@ -80,6 +80,8 @@ class RegisterInteractorTest {
 
     @ParameterizedTest
     @CsvSource({
+        "INVALID_EMAIL, INVALID_EMAIL",
+        "PASSWORD_REJECTED, PASSWORD_REJECTED",
         "USERNAME_TAKEN, USERNAME_TAKEN",
         "ACCOUNT_UNAVAILABLE, ACCOUNT_UNAVAILABLE",
         "SIGNUP_UNCERTAIN, SIGNUP_UNCERTAIN",

@@ -10,6 +10,7 @@ public sealed interface RegisterResponse {
         INVALID_USERNAME,
         INVALID_DISPLAY_NAME,
         PASSWORD_TOO_SHORT,
+        PASSWORD_REJECTED,
         PASSWORD_MISMATCH,
         USERNAME_TAKEN,
         ACCOUNT_UNAVAILABLE,

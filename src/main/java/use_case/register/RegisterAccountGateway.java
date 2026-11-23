@@ -21,6 +21,8 @@ public interface RegisterAccountGateway {
     }
 
     enum Failure implements Result {
+        INVALID_EMAIL,
+        PASSWORD_REJECTED,
         USERNAME_TAKEN,
         // A rejected registration for which the UI must not disclose whether the email is registered.
         ACCOUNT_UNAVAILABLE,
