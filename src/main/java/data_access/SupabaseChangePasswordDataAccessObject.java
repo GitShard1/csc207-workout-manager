@@ -1,6 +1,8 @@
 package data_access;
 
 import com.google.gson.JsonObject;
+import entity.User;
+import use_case.account.AuthSession;
 import use_case.change_password.ChangePasswordUserDataAccessInterface;
 import use_case.login.SignInDataAccessInterface;
 
@@ -47,7 +49,14 @@ public class SupabaseChangePasswordDataAccessObject implements ChangePasswordUse
 
             // Step 3: set the new password with the fresh session from step 2
             if (signInResult instanceof SignInDataAccessInterface.SignedIn signedIn) {
-                return setPassword(signedIn.session().accessToken(), newPassword);
+                Result result = setPassword(signedIn.session().accessToken(), newPassword);
+
+                // Keep the fresh session, since Supabase may end the old one after a password change
+                if (result == Result.CHANGED) {
+                    keepSession(signedIn.session());
+                }
+
+                return result;
             }
 
             return Result.UNAVAILABLE;
@@ -58,6 +67,14 @@ public class SupabaseChangePasswordDataAccessObject implements ChangePasswordUse
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return Result.UNAVAILABLE;
+        }
+    }
+
+    /** Swaps the stored session for the new one, keeping the same signed-in user. */
+    private void keepSession(AuthSession newSession) {
+        Optional<User> user = sessionStore.currentUser();
+        if (user.isPresent()) {
+            sessionStore.start(newSession, user.get());
         }
     }
 
