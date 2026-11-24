@@ -8,8 +8,8 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import use_case.account.AccountProfile;
 import use_case.account.AuthSession;
-import use_case.account.ProfileGateway;
-import use_case.account.SessionStarter;
+import use_case.account.ProfileDataAccessInterface;
+import use_case.account.StartSessionDataAccessInterface;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,22 +24,33 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 class RegisterInteractorTest {
     private static final UUID ID = UUID.randomUUID();
     private static final AuthSession SESSION = new AuthSession(ID, "token");
-    private static final RegisterRequest VALID =
-            new RegisterRequest("person@example.com", "new_user", "New User", "abcdefgh", "abcdefgh");
+    private static final RegisterInputData VALID =
+            new RegisterInputData("person@example.com", "new_user", "New User", "abcdefgh", "abcdefgh");
 
     private final FakeAccounts accounts = new FakeAccounts();
-    private final List<RegisterResponse> responses = new ArrayList<>();
+    private final List<Object> responses = new ArrayList<>();
+    private final RegisterOutputBoundary presenter = new RegisterOutputBoundary() {
+        @Override
+        public void prepareSuccessView(RegisterOutputData outputData) {
+            responses.add(outputData);
+        }
+
+        @Override
+        public void prepareFailView(RegisterFailure failure) {
+            responses.add(failure);
+        }
+    };
     private final RegisterInputBoundary interactor =
-            new RegisterInteractor(accounts, accounts, accounts, accounts, responses::add);
+            new RegisterInteractor(accounts, accounts, accounts, accounts, presenter);
 
     @Test
     void normalizesProfileInputAndSignsInWithThePersistedProfile() {
         final String password = " 123456 ";
         final User persisted = new User(ID, "new_user", "Persisted User");
-        accounts.signUp = new SignUpGateway.SignedUp(SESSION);
+        accounts.signUp = new SignUpDataAccessInterface.SignedUp(SESSION);
         accounts.profile = Optional.of(persisted);
 
-        interactor.execute(new RegisterRequest("  Person+test@example.com ", "  NEW_User  ", " New User ",
+        interactor.execute(new RegisterInputData("  Person+test@example.com ", "  NEW_User  ", " New User ",
                 password, password));
 
         assertEquals("Person+test@example.com", accounts.email);
@@ -48,24 +59,24 @@ class RegisterInteractorTest {
         assertEquals(password, accounts.password);
         assertEquals(SESSION, accounts.startedSession);
         assertEquals(persisted, accounts.startedUser);
-        assertEquals(List.of(new RegisterResponse.Success(new AccountProfile(ID, "new_user", "Persisted User"))),
+        assertEquals(List.of(new RegisterOutputData(new AccountProfile(ID, "new_user", "Persisted User"))),
                 responses);
     }
 
     @Test
     void createdAccountWhoseProfileCannotLoadStaysSignedOut() {
-        accounts.signUp = new SignUpGateway.SignedUp(SESSION);
+        accounts.signUp = new SignUpDataAccessInterface.SignedUp(SESSION);
 
         interactor.execute(VALID);
 
         assertNull(accounts.startedSession);
-        assertEquals(List.of(RegisterResponse.Failure.ACCOUNT_CREATED_PROFILE_UNAVAILABLE), responses);
+        assertEquals(List.of(RegisterFailure.ACCOUNT_CREATED_PROFILE_UNAVAILABLE), responses);
     }
 
     @ParameterizedTest
     @MethodSource("invalidRequests")
-    void rejectsInvalidFieldsWithoutContactingTheAccountService(RegisterRequest request,
-                                                                 RegisterResponse.Failure expected) {
+    void rejectsInvalidFieldsWithoutContactingTheAccountService(RegisterInputData request,
+                                                                 RegisterFailure expected) {
         interactor.execute(request);
 
         assertEquals(List.of(expected), responses);
@@ -74,27 +85,27 @@ class RegisterInteractorTest {
 
     private static Stream<Arguments> invalidRequests() {
         return Stream.of(
-                Arguments.of(new RegisterRequest("missing-at.example.com", "new_user", "New User", "abcdefgh",
-                        "abcdefgh"), RegisterResponse.Failure.INVALID_EMAIL),
-                Arguments.of(new RegisterRequest("a..b@example.com", "new_user", "New User", "abcdefgh", "abcdefgh"),
-                        RegisterResponse.Failure.INVALID_EMAIL),
-                Arguments.of(new RegisterRequest("person@example.com", "ab", "New User", "abcdefgh", "abcdefgh"),
-                        RegisterResponse.Failure.INVALID_USERNAME),
-                Arguments.of(new RegisterRequest("person@example.com", "new-user", "New User", "abcdefgh",
-                        "abcdefgh"), RegisterResponse.Failure.INVALID_USERNAME),
-                Arguments.of(new RegisterRequest("person@example.com", "new_user", " ", "abcdefgh", "abcdefgh"),
-                        RegisterResponse.Failure.INVALID_DISPLAY_NAME),
-                Arguments.of(new RegisterRequest("person@example.com", "new_user", "New User", "1234567", "1234567"),
-                        RegisterResponse.Failure.PASSWORD_TOO_SHORT),
-                Arguments.of(new RegisterRequest("person@example.com", "new_user", "New User", " abcdefgh", "abcdefgh"),
-                        RegisterResponse.Failure.PASSWORD_MISMATCH));
+                Arguments.of(new RegisterInputData("missing-at.example.com", "new_user", "New User", "abcdefgh",
+                        "abcdefgh"), RegisterFailure.INVALID_EMAIL),
+                Arguments.of(new RegisterInputData("a..b@example.com", "new_user", "New User", "abcdefgh", "abcdefgh"),
+                        RegisterFailure.INVALID_EMAIL),
+                Arguments.of(new RegisterInputData("person@example.com", "ab", "New User", "abcdefgh", "abcdefgh"),
+                        RegisterFailure.INVALID_USERNAME),
+                Arguments.of(new RegisterInputData("person@example.com", "new-user", "New User", "abcdefgh",
+                        "abcdefgh"), RegisterFailure.INVALID_USERNAME),
+                Arguments.of(new RegisterInputData("person@example.com", "new_user", " ", "abcdefgh", "abcdefgh"),
+                        RegisterFailure.INVALID_DISPLAY_NAME),
+                Arguments.of(new RegisterInputData("person@example.com", "new_user", "New User", "1234567", "1234567"),
+                        RegisterFailure.PASSWORD_TOO_SHORT),
+                Arguments.of(new RegisterInputData("person@example.com", "new_user", "New User", " abcdefgh",
+                        "abcdefgh"), RegisterFailure.PASSWORD_MISMATCH));
     }
 
     @ParameterizedTest
     @CsvSource({"true, USERNAME_TAKEN", "false, RETRYABLE_FAILURE"})
     void rejectedProfileIsReportedAsTakenOnlyWhenTheUsernameIsConfirmedTaken(
-            boolean taken, RegisterResponse.Failure expected) {
-        accounts.signUp = SignUpGateway.Failure.PROFILE_REJECTED;
+            boolean taken, RegisterFailure expected) {
+        accounts.signUp = SignUpDataAccessInterface.Failure.PROFILE_REJECTED;
         accounts.usernameTaken = taken;
 
         interactor.execute(VALID);
@@ -112,8 +123,8 @@ class RegisterInteractorTest {
         "SIGNUP_UNCERTAIN, SIGNUP_UNCERTAIN",
         "RETRYABLE_FAILURE, RETRYABLE_FAILURE"
     })
-    void presentsOtherSignUpFailuresWithoutFurtherRequests(SignUpGateway.Failure failure,
-                                                           RegisterResponse.Failure expected) {
+    void presentsOtherSignUpFailuresWithoutFurtherRequests(SignUpDataAccessInterface.Failure failure,
+                                                           RegisterFailure expected) {
         accounts.signUp = failure;
 
         interactor.execute(VALID);
@@ -125,16 +136,17 @@ class RegisterInteractorTest {
 
     @Test
     void diagnosticStringOmitsSubmittedCredentials() {
-        final RegisterRequest request =
-                new RegisterRequest("person@example.com", "new_user", "New User", "abcdefgh", "confirmation");
+        final RegisterInputData request =
+                new RegisterInputData("person@example.com", "new_user", "New User", "abcdefgh", "confirmation");
         assertFalse(request.toString().contains(request.email()));
         assertFalse(request.toString().contains(request.password()));
         assertFalse(request.toString().contains(request.passwordConfirmation()));
     }
 
     private static final class FakeAccounts
-            implements SignUpGateway, ProfileGateway, UsernameAvailabilityGateway, SessionStarter {
-        private SignUpGateway.Result signUp;
+            implements SignUpDataAccessInterface, ProfileDataAccessInterface, UsernameAvailabilityDataAccessInterface,
+            StartSessionDataAccessInterface {
+        private SignUpDataAccessInterface.Result signUp;
         private Optional<User> profile = Optional.empty();
         private boolean usernameTaken;
         private int signUpCalls;
@@ -147,7 +159,8 @@ class RegisterInteractorTest {
         private User startedUser;
 
         @Override
-        public SignUpGateway.Result signUp(String email, String password, String username, String displayName) {
+        public SignUpDataAccessInterface.Result signUp(String email, String password, String username,
+                                                       String displayName) {
             signUpCalls++;
             this.email = email;
             this.password = password;

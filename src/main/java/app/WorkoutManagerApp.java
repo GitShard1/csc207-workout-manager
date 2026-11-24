@@ -1,7 +1,7 @@
 package app;
 
 import data_access.InMemorySessionStore;
-import data_access.SupabaseAuthGateway;
+import data_access.SupabaseAuthDataAccessObject;
 import data_access.SupabaseClient;
 import data_access.SupabaseProfileDao;
 import interface_adapter.ViewManagerModel;
@@ -52,7 +52,7 @@ public final class WorkoutManagerApp {
         }
 
         final InMemorySessionStore session = new InMemorySessionStore();
-        final SupabaseAuthGateway auth = new SupabaseAuthGateway(client);
+        final SupabaseAuthDataAccessObject auth = new SupabaseAuthDataAccessObject(client);
         final SupabaseProfileDao profiles = new SupabaseProfileDao(client);
 
         final ViewManagerModel viewManagerModel = new ViewManagerModel(LogInViewModel.VIEW_NAME);

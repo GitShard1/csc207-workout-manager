@@ -4,7 +4,7 @@ import use_case.account.AuthSession;
 
 import java.util.Objects;
 
-public interface SignUpGateway {
+public interface SignUpDataAccessInterface {
     /**
      * Creates an account with the account service, which also stores the username and display name as the user's
      * profile. Does not change who is signed in.

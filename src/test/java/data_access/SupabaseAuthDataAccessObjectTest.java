@@ -8,8 +8,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import use_case.account.AuthSession;
-import use_case.login.SignInGateway;
-import use_case.register.SignUpGateway;
+import use_case.login.SignInDataAccessInterface;
+import use_case.register.SignUpDataAccessInterface;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -19,19 +19,19 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-final class SupabaseAuthGatewayTest {
+final class SupabaseAuthDataAccessObjectTest {
     private static final String EMAIL = "loopback@example.invalid";
     private static final String PASSWORD = " test\"password ";
     private static final UUID ID = UUID.fromString("11111111-1111-4111-8111-111111111111");
     private static final String TOKEN = "first.user.token";
 
     private LoopbackSupabase server;
-    private SupabaseAuthGateway auth;
+    private SupabaseAuthDataAccessObject auth;
 
     @BeforeEach
     void setUp() throws IOException {
         server = new LoopbackSupabase();
-        auth = new SupabaseAuthGateway(server.client(Duration.ofSeconds(3)));
+        auth = new SupabaseAuthDataAccessObject(server.client(Duration.ofSeconds(3)));
     }
 
     @AfterEach
@@ -43,7 +43,7 @@ final class SupabaseAuthGatewayTest {
     void signUpSendsCredentialsAndProfileMetadataAndReturnsTheSession() throws InterruptedException {
         server.enqueue(200, session(ID, TOKEN));
 
-        assertEquals(new SignUpGateway.SignedUp(new AuthSession(ID, TOKEN)), signUp());
+        assertEquals(new SignUpDataAccessInterface.SignedUp(new AuthSession(ID, TOKEN)), signUp());
 
         final var call = server.takeCall();
         assertCall(call, "POST", "/auth/v1/signup", null);
@@ -58,7 +58,7 @@ final class SupabaseAuthGatewayTest {
     void signInReturnsTheSession() throws InterruptedException {
         server.enqueue(200, session(ID, TOKEN));
 
-        assertEquals(new SignInGateway.SignedIn(new AuthSession(ID, TOKEN)), auth.signIn(EMAIL, PASSWORD));
+        assertEquals(new SignInDataAccessInterface.SignedIn(new AuthSession(ID, TOKEN)), auth.signIn(EMAIL, PASSWORD));
 
         final var call = server.takeCall();
         assertCall(call, "POST", "/auth/v1/token?grant_type=password", null);
@@ -71,8 +71,8 @@ final class SupabaseAuthGatewayTest {
         server.enqueue(200, body);
         server.enqueue(200, body);
 
-        assertEquals(SignInGateway.Failure.RETRYABLE_FAILURE, auth.signIn(EMAIL, PASSWORD));
-        assertEquals(SignUpGateway.Failure.SIGNUP_UNCERTAIN, signUp());
+        assertEquals(SignInDataAccessInterface.Failure.RETRYABLE_FAILURE, auth.signIn(EMAIL, PASSWORD));
+        assertEquals(SignUpDataAccessInterface.Failure.SIGNUP_UNCERTAIN, signUp());
     }
 
     @Test
@@ -80,8 +80,8 @@ final class SupabaseAuthGatewayTest {
         server.enqueue(200, "{\"id\":\"" + ID + "\"}");
         server.enqueue(200, "{\"user\":{\"id\":\"" + ID + "\"}}");
 
-        assertEquals(SignUpGateway.Failure.NO_USABLE_SESSION, signUp());
-        assertEquals(SignInGateway.Failure.NO_USABLE_SESSION, auth.signIn(EMAIL, PASSWORD));
+        assertEquals(SignUpDataAccessInterface.Failure.NO_USABLE_SESSION, signUp());
+        assertEquals(SignInDataAccessInterface.Failure.NO_USABLE_SESSION, auth.signIn(EMAIL, PASSWORD));
     }
 
     @Test
@@ -91,10 +91,10 @@ final class SupabaseAuthGatewayTest {
         server.enqueue(400, "{\"error_code\":\"email_not_confirmed\"}");
         server.enqueue(429, "{\"error_code\":\"over_request_rate_limit\"}");
 
-        assertEquals(SignInGateway.Failure.BAD_CREDENTIALS, auth.signIn(EMAIL, PASSWORD));
-        assertEquals(SignInGateway.Failure.BAD_CREDENTIALS, auth.signIn(EMAIL, PASSWORD));
-        assertEquals(SignInGateway.Failure.NO_USABLE_SESSION, auth.signIn(EMAIL, PASSWORD));
-        assertEquals(SignInGateway.Failure.RETRYABLE_FAILURE, auth.signIn(EMAIL, PASSWORD));
+        assertEquals(SignInDataAccessInterface.Failure.BAD_CREDENTIALS, auth.signIn(EMAIL, PASSWORD));
+        assertEquals(SignInDataAccessInterface.Failure.BAD_CREDENTIALS, auth.signIn(EMAIL, PASSWORD));
+        assertEquals(SignInDataAccessInterface.Failure.NO_USABLE_SESSION, auth.signIn(EMAIL, PASSWORD));
+        assertEquals(SignInDataAccessInterface.Failure.RETRYABLE_FAILURE, auth.signIn(EMAIL, PASSWORD));
     }
 
     @ParameterizedTest
@@ -107,7 +107,7 @@ final class SupabaseAuthGatewayTest {
         "500, unexpected_failure, SIGNUP_UNCERTAIN",
         "504, , SIGNUP_UNCERTAIN"
     })
-    void signUpMapsRejections(int status, String code, SignUpGateway.Failure expected) {
+    void signUpMapsRejections(int status, String code, SignUpDataAccessInterface.Failure expected) {
         server.enqueue(status, code == null ? "" : "{\"error_code\":\"%s\"}".formatted(code));
 
         assertEquals(expected, signUp());
@@ -119,7 +119,7 @@ final class SupabaseAuthGatewayTest {
                 {"code":500,"error_code":"unexpected_failure","msg":"Database error saving new user"}
                 """);
 
-        assertEquals(SignUpGateway.Failure.PROFILE_REJECTED, signUp());
+        assertEquals(SignUpDataAccessInterface.Failure.PROFILE_REJECTED, signUp());
 
         server.takeCall();
         assertNull(server.unexpectedCall());
@@ -127,10 +127,10 @@ final class SupabaseAuthGatewayTest {
 
     @Test
     void signUpWhoseReplyStallsIsUncertain() {
-        auth = new SupabaseAuthGateway(server.client(Duration.ofMillis(700)));
+        auth = new SupabaseAuthDataAccessObject(server.client(Duration.ofMillis(700)));
         server.stallBody(200, session(ID, TOKEN));
 
-        assertEquals(SignUpGateway.Failure.SIGNUP_UNCERTAIN, signUp());
+        assertEquals(SignUpDataAccessInterface.Failure.SIGNUP_UNCERTAIN, signUp());
     }
 
     @Test
@@ -146,7 +146,7 @@ final class SupabaseAuthGatewayTest {
         assertEquals("", call.body());
     }
 
-    private SignUpGateway.Result signUp() {
+    private SignUpDataAccessInterface.Result signUp() {
         return auth.signUp(EMAIL, PASSWORD, "first_user", "First User");
     }
 
