@@ -2,7 +2,7 @@ package use_case.change_password;
 
 import entity.User;
 import use_case.account.AccountPassword;
-import use_case.account.CurrentUserReader;
+import use_case.account.CurrentUserDataAccessInterface;
 
 import java.util.Optional;
 
@@ -12,21 +12,21 @@ import java.util.Optional;
  */
 public class ChangePasswordInteractor implements ChangePasswordInputBoundary {
     private final ChangePasswordUserDataAccessInterface userDataAccessObject;
-    private final CurrentUserReader currentUserReader;
+    private final CurrentUserDataAccessInterface currentUserDataAccessObject;
     private final ChangePasswordOutputBoundary userPresenter;
 
     public ChangePasswordInteractor(ChangePasswordUserDataAccessInterface changePasswordDataAccessInterface,
-                                    CurrentUserReader currentUserReader,
+                                    CurrentUserDataAccessInterface currentUserDataAccessObject,
                                     ChangePasswordOutputBoundary changePasswordOutputBoundary) {
         this.userDataAccessObject = changePasswordDataAccessInterface;
-        this.currentUserReader = currentUserReader;
+        this.currentUserDataAccessObject = currentUserDataAccessObject;
         this.userPresenter = changePasswordOutputBoundary;
     }
 
     @Override
     public void execute(ChangePasswordInputData changePasswordInputData) {
         // Precondition from #22: the user is logged in
-        Optional<User> user = currentUserReader.currentUser();
+        Optional<User> user = currentUserDataAccessObject.currentUser();
         if (user.isEmpty()) {
             userPresenter.prepareFailView("You need to be logged in to change your password.");
             return;

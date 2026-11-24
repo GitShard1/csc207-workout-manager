@@ -2,7 +2,7 @@ package data_access;
 
 import com.google.gson.JsonObject;
 import use_case.change_password.ChangePasswordUserDataAccessInterface;
-import use_case.login.SignInGateway;
+import use_case.login.SignInDataAccessInterface;
 
 import java.io.IOException;
 import java.net.http.HttpResponse;
@@ -14,13 +14,14 @@ import java.util.Optional;
  */
 public class SupabaseChangePasswordDataAccessObject implements ChangePasswordUserDataAccessInterface {
     private final SupabaseClient client;
-    private final SignInGateway signInGateway;
+    private final SignInDataAccessInterface signInDataAccessObject;
     private final InMemorySessionStore sessionStore;
 
-    public SupabaseChangePasswordDataAccessObject(SupabaseClient client, SignInGateway signInGateway,
+    public SupabaseChangePasswordDataAccessObject(SupabaseClient client,
+                                                  SignInDataAccessInterface signInDataAccessObject,
                                                   InMemorySessionStore sessionStore) {
         this.client = client;
-        this.signInGateway = signInGateway;
+        this.signInDataAccessObject = signInDataAccessObject;
         this.sessionStore = sessionStore;
     }
 
@@ -39,13 +40,13 @@ public class SupabaseChangePasswordDataAccessObject implements ChangePasswordUse
             }
 
             // Step 2: check the current password with the same sign in that Log In uses
-            SignInGateway.Result signInResult = signInGateway.signIn(email, currentPassword);
-            if (signInResult == SignInGateway.Failure.BAD_CREDENTIALS) {
+            SignInDataAccessInterface.Result signInResult = signInDataAccessObject.signIn(email, currentPassword);
+            if (signInResult == SignInDataAccessInterface.Failure.BAD_CREDENTIALS) {
                 return Result.WRONG_CURRENT_PASSWORD;
             }
 
             // Step 3: set the new password with the fresh session from step 2
-            if (signInResult instanceof SignInGateway.SignedIn signedIn) {
+            if (signInResult instanceof SignInDataAccessInterface.SignedIn signedIn) {
                 return setPassword(signedIn.session().accessToken(), newPassword);
             }
 

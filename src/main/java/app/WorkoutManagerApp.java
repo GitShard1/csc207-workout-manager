@@ -1,7 +1,6 @@
 package app;
 
 import data_access.InMemorySessionStore;
-import data_access.SupabaseAuthGateway;
 import data_access.SupabaseChangePasswordDataAccessObject;
 import data_access.SupabaseAuthDataAccessObject;
 import data_access.SupabaseClient;
