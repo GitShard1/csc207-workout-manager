@@ -43,7 +43,7 @@ class SearchExercisesInteractorTest {
         SearchExercisesOutputData.ExerciseResult result = presenter.successData.results().get(0);
         assertEquals("0025", result.exerciseID());
         assertEquals("Barbell Bench Press", result.name());
-        assertEquals("CHEST", result.bodyPart());
+        assertEquals(BodyPart.CHEST, result.bodyPart());
         assertEquals(List.of("Triceps", "Shoulders"), result.secondaryMuscles());
         assertEquals("compound", result.mechanic());
         assertEquals(new ExerciseSearchQuery("press", BodyPart.CHEST, "barbell"), library.getReceivedQueries().get(0));

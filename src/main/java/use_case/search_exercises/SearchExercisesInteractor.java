@@ -57,7 +57,7 @@ public class SearchExercisesInteractor implements SearchExercisesInputBoundary {
         return new SearchExercisesOutputData.ExerciseResult(
                 exercise.getExerciseID(),
                 exercise.getName(),
-                exercise.getBodyPart().name(),
+                exercise.getBodyPart(),
                 exercise.getTarget(),
                 exercise.getSecondaryMuscles(),
                 exercise.getEquipment(),
