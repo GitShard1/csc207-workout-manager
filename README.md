@@ -101,7 +101,18 @@ As a user, I want to copy my friend's workout plans so I can do the same exercis
 
 ### Find an Exercise
 
-The user browses the exercise library, filters by name, muscle group or equipment, and opens an exercise to see its description, muscles worked, equipment and picture.
+**Actor:** User. **Precondition:** Signed in. **Trigger:** The user opens the exercise library.
+
+**Success outcome:** The user sees the exercises that match their search and can read about any of them.
+
+1. The user types part of an exercise name, chooses a body part, chooses equipment, or any combination of these.
+2. The system shows every matching exercise with its body part, main and secondary muscles, equipment, and whether it is a compound or isolation movement.
+3. The user opens an exercise to see its step-by-step instructions and picture.
+
+**Extensions:**
+- At step 1, if the user searches without entering anything, the system asks for a name, body part or equipment.
+- At step 2, if nothing matches, the system says so and the user can change the search.
+- At step 2, if the exercise library can't be reached, the system says search is unavailable right now and the user can try again later.
 
 ### Create a Workout Plan
 
@@ -140,7 +151,7 @@ The user opens a friend's profile and copies one of their plans. The system save
 | Jirat | Use Case |
 | Demeng | Register an Account, Log In, Log Out |
 | Eric | Use Case |
-| David | Use Case |
+| David | Find an Exercise |
 | Amgalan | Use Case |
 
 ---
@@ -162,10 +173,14 @@ Instance Attributes:
 - ExerciseID (String, from the WorkoutX API)
 - Name (String)
 - Description (String)
-- Main Muscle Group (MuscleGroup enum)
-- Muscles Worked (List of MuscleGroup)
+- Body Part (BodyPart enum: BACK, CARDIO, CHEST, LOWER_ARMS, LOWER_LEGS, NECK, SHOULDERS, UPPER_ARMS, UPPER_LEGS, WAIST)
+- Target (String, the main muscle worked)
+- Secondary Muscles (List of String)
 - Equipment (String)
-- Image URL (String, optional)
+- Mechanic (String, compound or isolation)
+- Instructions (ordered List of String)
+
+Rules: the ID and name can't be blank. Pictures are looked up by ID rather than stored, because WorkoutX image links need the API key.
 
 ### PlannedExercise
 Instance Attributes:
@@ -231,7 +246,7 @@ Instance Attributes:
 
 **Documentation:** [Link](https://workoutxapp.com/docs.html)
 
-**How it is used in the program:** Planned for looking up exercises, including their descriptions, muscles worked, equipment and pictures.
+**How it is used in the program:** Searches the exercise library by name, body part and equipment, and provides each exercise's muscles, equipment, instructions and picture. Search results are cached while the app runs, so repeating a search doesn't use another of the API key's requests. The team has called it successfully; saved responses are in `src/test/resources/workoutx/`.
 
 ---
 

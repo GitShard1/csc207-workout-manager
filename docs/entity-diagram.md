@@ -26,9 +26,25 @@ classDiagram
         String exerciseID
         String name
         String description
-        String mainMuscleGroup
+        BodyPart bodyPart
+        String target
+        List~String~ secondaryMuscles
         String equipment
-        String imageUrl
+        String mechanic
+        List~String~ instructions
+    }
+    class BodyPart {
+        <<enumeration>>
+        BACK
+        CARDIO
+        CHEST
+        LOWER_ARMS
+        LOWER_LEGS
+        NECK
+        SHOULDERS
+        UPPER_ARMS
+        UPPER_LEGS
+        WAIST
     }
     class Workout {
         UUID workoutID
@@ -59,6 +75,7 @@ classDiagram
     User "1" *-- "0..*" Workout : workoutHistory
     WorkoutPlan "1" *-- "0..*" PlannedExercise : exercises (ordered)
     PlannedExercise --> Exercise
+    Exercise --> BodyPart
     Workout "1" *-- "0..*" LoggedExercise : exercises
     LoggedExercise --> Exercise
     LoggedExercise "1" *-- "0..*" ExerciseSet : completedSets
