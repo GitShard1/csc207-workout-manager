@@ -57,6 +57,10 @@ As a user, I want to be able to respond to friend requests so I can choose wheth
 
 As a user, I want to copy my friend's workout plans so I can do the same exercises as my friends.
 
+### User Story 10
+
+As a user, I want to change my password and other account settings so that my account stays up to date.
+
 ---
 
 ## Use Cases
@@ -98,6 +102,20 @@ As a user, I want to copy my friend's workout plans so I can do the same exercis
 2. The system returns to Log In and confirms that the user is signed out.
 
 **Extension:** At step 1, if the account service can't be reached, the user is still signed out on this computer.
+
+### Change Password
+
+**Actor:** Signed-in user. **Precondition:** Signed in. **Trigger:** The user opens Settings from Home.
+
+**Success outcome:** The account's password is the new one, and the user stays signed in.
+
+1. The user enters their current password, a new password, and the new password again.
+2. The system checks the passwords and the current password with the account service.
+3. The system saves the new password, confirms the change, and clears the fields.
+
+**Extensions:**
+- At step 2, if the current password is empty or wrong, the new password is under 8 characters, the two new passwords don't match, or the new password is the same as the current one, the system explains why and keeps what the user typed.
+- At step 3, if the account service rejects the new password or can't be reached, the password is unchanged and the user can try again.
 
 ### Find an Exercise
 
@@ -148,7 +166,7 @@ The user opens a friend's profile and copies one of their plans. The system save
 
 | Team Member | MVP Use Case |
 |-------------|--------------|
-| Jirat | Use Case |
+| Jirat | User Settings & Change Password & Dashboard |
 | Demeng | Register an Account, Log In, Log Out |
 | Eric | Use Case |
 | David | Find an Exercise |
