@@ -2,13 +2,20 @@ package data_access;
 
 import com.google.gson.JsonParser;
 import entity.User;
+import interface_adapter.following.FollowingPresenter;
+import interface_adapter.following.FollowingState;
+import interface_adapter.following.FollowingViewModel;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 import use_case.account.AccountProfile;
 import use_case.account.AuthSession;
 import use_case.following.FollowingDataAccessInterface.RequestFailed;
 import use_case.following.FollowingDataAccessInterface.SaveResult;
+import use_case.following.FollowingInteractor;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -62,6 +69,49 @@ final class SupabaseFollowingDaoTest {
         assertThrows(RequestFailed.class, () -> dao.findByUsername(OWNER_ID, "target"));
         server.enqueue(503, "[]");
         assertThrows(RequestFailed.class, () -> dao.list(OWNER_ID));
+    }
+
+    @Test
+    void refusesUnexpectedLookupResults() {
+        server.enqueue(200, TARGET_ROW.replace("target", "a_different_username"));
+        assertThrows(RequestFailed.class, () -> dao.findByUsername(OWNER_ID, "target"));
+        final var rows = JsonParser.parseString(TARGET_ROW).getAsJsonArray();
+        rows.add(rows.get(0));
+        server.enqueue(200, rows.toString());
+        assertThrows(RequestFailed.class, () -> dao.findByUsername(OWNER_ID, "target"));
+    }
+
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = {"   ", "ab", "Alex", "alex smith", "abcdefghijklmnopqrstuvwxyz"})
+    void invalidUsernamesAreRejectedWithoutARequest(String username) throws Exception {
+        final FollowingViewModel viewModel = new FollowingViewModel();
+        final FollowingInteractor interactor =
+                new FollowingInteractor(sessions, dao, new FollowingPresenter(viewModel));
+
+        interactor.findAccount(username);
+
+        assertEquals("No account found for that username.", viewModel.getState().message());
+        assertNull(server.unexpectedCall());
+    }
+
+    @Test
+    void signedOutOperationsClearPreviouslyVisibleProfilesAndSendNoRequests() throws Exception {
+        final FollowingViewModel viewModel = new FollowingViewModel();
+        final FollowingInteractor interactor =
+                new FollowingInteractor(sessions, dao, new FollowingPresenter(viewModel));
+        final AccountProfile target = AccountProfile.from(TARGET);
+        final FollowingState stale = new FollowingState(target, List.of(target), "");
+        final List<Runnable> operations = List.of(interactor::loadFollowing, () -> interactor.findAccount("target"),
+                () -> interactor.follow(target));
+        sessions.endCurrentSession();
+
+        for (Runnable operation : operations) {
+            viewModel.setState(stale);
+            operation.run();
+            assertEquals(new FollowingState(null, List.of(), "Sign in to use Following."), viewModel.getState());
+        }
+        assertNull(server.unexpectedCall());
     }
 
     @Test

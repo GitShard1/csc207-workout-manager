@@ -212,6 +212,32 @@ class AccountViewsTest {
         onEdt(() -> assertEquals("You aren't following anyone yet.", followingStatus()));
     }
 
+    @Test
+    void failedLookupClearsTheOldResultAndEnterRetriesWithoutLosingBookmarks() throws Exception {
+        bookmarks.saved = true;
+        openFollowing();
+        searchFollowing("sam_1");
+        onEdt(() -> assertEquals("@sam_1 - Sam", label(following, "Account result").getText()));
+
+        onEdt(() -> bookmarks.failLookup = true);
+        searchFollowing("alex_1");
+        onEdt(() -> {
+            assertEquals("Couldn't look up that account. Try again.", followingStatus());
+            assertFalse(button(following, "Follow").isVisible());
+            assertEquals("", label(following, "Account result").getText());
+            assertEquals("@alex_1 - Alex", followingList().getModel().getElementAt(0));
+            bookmarks.failLookup = false;
+            field(following, "Username").postActionEvent();
+        });
+
+        await(() -> button(following, "Search").isEnabled());
+        onEdt(() -> {
+            assertEquals("@alex_1 - Alex", label(following, "Account result").getText());
+            assertTrue(button(following, "Follow").isVisible());
+            assertEquals(1, followingList().getModel().getSize());
+        });
+    }
+
     private void openFollowing() throws Exception {
         build(request -> logInPresenter.prepareSuccessView(new LogInOutputData(SAM)), request -> { });
         onEdt(() -> button(logIn, "Log In").doClick(0));
@@ -319,6 +345,7 @@ class AccountViewsTest {
 
     private static final class FollowingFixture implements FollowingDataAccessInterface {
         private boolean saved;
+        private boolean failLookup;
         private boolean failSave;
         private boolean failList;
 
@@ -333,9 +360,12 @@ class AccountViewsTest {
         }
 
         @Override
-        public Optional<AccountProfile> findByUsername(UUID viewerId, String username) {
+        public Optional<AccountProfile> findByUsername(UUID viewerId, String username) throws RequestFailed {
             assertFalse(SwingUtilities.isEventDispatchThread());
             assertEquals(SAM.userID(), viewerId);
+            if (failLookup) {
+                throw new RequestFailed();
+            }
             return List.of(SAM, ALEX).stream().filter(account -> account.username().equals(username)).findFirst();
         }
 
