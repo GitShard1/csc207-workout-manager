@@ -8,7 +8,7 @@ import use_case.create_plan.CreatePlanOutputData;
 public class CreatePlanPresenter implements CreatePlanOutputBoundary {
     private final PlanEditorViewModel viewModel;
 
-    CreatePlanPresenter(PlanEditorViewModel viewModel) {
+    public CreatePlanPresenter(PlanEditorViewModel viewModel) {
         this.viewModel = viewModel;
     }
 
