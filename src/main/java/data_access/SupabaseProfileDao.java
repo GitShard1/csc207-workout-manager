@@ -4,8 +4,8 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import entity.User;
 import use_case.account.AuthSession;
-import use_case.account.ProfileGateway;
-import use_case.register.UsernameAvailabilityGateway;
+import use_case.account.ProfileDataAccessInterface;
+import use_case.register.UsernameAvailabilityDataAccessInterface;
 
 import java.io.IOException;
 import java.net.http.HttpResponse;
@@ -18,7 +18,7 @@ import static data_access.SupabaseJson.parse;
 import static data_access.SupabaseJson.string;
 
 /** Reads profiles from the {@code profiles} table, which Supabase fills in when an account is created. */
-public final class SupabaseProfileDao implements ProfileGateway, UsernameAvailabilityGateway {
+public final class SupabaseProfileDao implements ProfileDataAccessInterface, UsernameAvailabilityDataAccessInterface {
     private final SupabaseClient client;
 
     public SupabaseProfileDao(SupabaseClient client) {

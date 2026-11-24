@@ -4,7 +4,7 @@ import use_case.account.AuthSession;
 
 import java.util.Objects;
 
-public interface SignInGateway {
+public interface SignInDataAccessInterface {
     /** Verifies the credentials with the account service. Does not change who is signed in. */
     Result signIn(String email, String password);
 

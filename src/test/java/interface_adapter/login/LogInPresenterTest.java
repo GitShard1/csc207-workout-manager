@@ -7,7 +7,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import use_case.account.AccountProfile;
-import use_case.login.LogInResponse;
+import use_case.login.LogInFailure;
+import use_case.login.LogInOutputData;
 
 import java.util.UUID;
 
@@ -23,7 +24,7 @@ class LogInPresenterTest {
     void successShowsTheProfileOnHome() {
         logIn.setState(new LogInState("Earlier error", null));
 
-        presenter.present(new LogInResponse.Success(new AccountProfile(UUID.randomUUID(), "sam_1", "Sam")));
+        presenter.prepareSuccessView(new LogInOutputData(new AccountProfile(UUID.randomUUID(), "sam_1", "Sam")));
 
         assertEquals(new HomeState("Signed in as Sam", "@sam_1"), home.getState());
         assertEquals(LogInState.empty(), logIn.getState());
@@ -36,8 +37,8 @@ class LogInPresenterTest {
         "NO_USABLE_SESSION | Confirm your email if prompted, then try logging in again.",
         "RETRYABLE_FAILURE | We couldn't log you in right now. Please try again."
     })
-    void failureExplainsWhatToTryNextAndStaysOnLogIn(LogInResponse.Failure failure, String message) {
-        presenter.present(failure);
+    void failureExplainsWhatToTryNextAndStaysOnLogIn(LogInFailure failure, String message) {
+        presenter.prepareFailView(failure);
 
         assertEquals(new LogInState(message, null), logIn.getState());
         assertEquals(LogInViewModel.VIEW_NAME, viewManager.getState());

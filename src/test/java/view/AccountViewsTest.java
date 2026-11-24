@@ -12,8 +12,9 @@ import interface_adapter.register.RegisterPresenter;
 import interface_adapter.register.RegisterViewModel;
 import org.junit.jupiter.api.Test;
 import use_case.account.AccountProfile;
-import use_case.login.LogInResponse;
-import use_case.register.RegisterResponse;
+import use_case.login.LogInFailure;
+import use_case.login.LogInOutputData;
+import use_case.register.RegisterFailure;
 
 import javax.swing.JButton;
 import javax.swing.JComponent;
@@ -52,8 +53,8 @@ class AccountViewsTest {
 
     @Test
     void rejectedRegistrationKeepsTheDetailsButNotThePasswords() throws Exception {
-        build(request -> logInPresenter.present(LogInResponse.Failure.RETRYABLE_FAILURE),
-                request -> registerPresenter.present(RegisterResponse.Failure.USERNAME_TAKEN));
+        build(request -> logInPresenter.prepareFailView(LogInFailure.RETRYABLE_FAILURE),
+                request -> registerPresenter.prepareFailView(RegisterFailure.USERNAME_TAKEN));
         onEdt(() -> {
             button(logIn, "Create an account").doClick(0);
             assertTrue(register.isVisible());
@@ -78,7 +79,7 @@ class AccountViewsTest {
 
     @Test
     void logInOpensHomeAndLogOutReturnsToAClearedLogInForm() throws Exception {
-        build(request -> logInPresenter.present(new LogInResponse.Success(SAM)), request -> { });
+        build(request -> logInPresenter.prepareSuccessView(new LogInOutputData(SAM)), request -> { });
         onEdt(() -> {
             field(logIn, "Email").setText("sam@example.test");
             field(logIn, "Password").setText("long enough");
@@ -123,7 +124,7 @@ class AccountViewsTest {
         onEdt(() -> {
             logIn = new LogInView(logInViewModel, new LogInController(logInUseCase), viewManagerModel);
             register = new RegisterView(registerViewModel, new RegisterController(registerUseCase), viewManagerModel);
-            home = new HomeView(homeViewModel, new LogOutController(logOutPresenter::signedOut));
+            home = new HomeView(homeViewModel, new LogOutController(logOutPresenter::prepareSuccessView));
             final ViewManager views = new ViewManager(viewManagerModel);
             views.addView(LogInViewModel.VIEW_NAME, logIn);
             views.addView(RegisterViewModel.VIEW_NAME, register);

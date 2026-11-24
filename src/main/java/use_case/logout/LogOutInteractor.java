@@ -5,15 +5,15 @@ import use_case.account.AuthSession;
 import java.util.Optional;
 
 public final class LogOutInteractor implements LogOutInputBoundary {
-    private final LogOutSessionGateway sessions;
-    private final SessionRevocationGateway auth;
-    private final LogOutOutputBoundary output;
+    private final LogOutSessionDataAccessInterface sessions;
+    private final SessionRevocationDataAccessInterface auth;
+    private final LogOutOutputBoundary presenter;
 
-    public LogOutInteractor(LogOutSessionGateway sessions, SessionRevocationGateway auth,
-                            LogOutOutputBoundary output) {
+    public LogOutInteractor(LogOutSessionDataAccessInterface sessions, SessionRevocationDataAccessInterface auth,
+                            LogOutOutputBoundary presenter) {
         this.sessions = sessions;
         this.auth = auth;
-        this.output = output;
+        this.presenter = presenter;
     }
 
     /**
@@ -23,7 +23,7 @@ public final class LogOutInteractor implements LogOutInputBoundary {
     @Override
     public void execute() {
         final Optional<AuthSession> ended = sessions.endCurrentSession();
-        output.signedOut();
+        presenter.prepareSuccessView();
         ended.ifPresent(auth::revoke);
     }
 }

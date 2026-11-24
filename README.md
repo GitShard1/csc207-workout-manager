@@ -265,6 +265,6 @@ You can also open `pom.xml` as a Maven project in your IDE and run `app.WorkoutM
 
 ### Using the signed-in user
 
-- Interactors that need the signed-in user depend on `use_case.account.CurrentUserReader`, which `InMemorySessionStore` implements.
+- Interactors that need the signed-in user depend on `use_case.account.CurrentUserDataAccessInterface`, which `InMemorySessionStore` implements.
 - Supabase DAOs send `InMemorySessionStore.accessToken()` as the bearer token so row-level security applies.
 - A new screen gets a view model extending `interface_adapter.ViewModel` and is registered with `ViewManager.addView`. Presenters open it by setting `ViewManagerModel`'s state to its view name.
