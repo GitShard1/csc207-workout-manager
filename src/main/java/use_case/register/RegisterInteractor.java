@@ -2,6 +2,7 @@ package use_case.register;
 
 import entity.User;
 import use_case.account.AccountEmail;
+import use_case.account.AccountPassword;
 import use_case.account.AccountProfile;
 import use_case.account.AuthSession;
 import use_case.account.ProfileDataAccessInterface;
@@ -11,8 +12,6 @@ import java.util.Locale;
 import java.util.Optional;
 
 public final class RegisterInteractor implements RegisterInputBoundary {
-    private static final int MIN_PASSWORD_LENGTH = 8;
-
     private final SignUpDataAccessInterface auth;
     private final ProfileDataAccessInterface profiles;
     private final UsernameAvailabilityDataAccessInterface usernames;
@@ -42,7 +41,7 @@ public final class RegisterInteractor implements RegisterInputBoundary {
             presenter.prepareFailView(RegisterFailure.INVALID_USERNAME);
         } else if (!User.isValidDisplayName(displayName)) {
             presenter.prepareFailView(RegisterFailure.INVALID_DISPLAY_NAME);
-        } else if (password == null || password.codePointCount(0, password.length()) < MIN_PASSWORD_LENGTH) {
+        } else if (!AccountPassword.isLongEnough(password)) {
             presenter.prepareFailView(RegisterFailure.PASSWORD_TOO_SHORT);
         } else if (!password.equals(inputData.passwordConfirmation())) {
             presenter.prepareFailView(RegisterFailure.PASSWORD_MISMATCH);
