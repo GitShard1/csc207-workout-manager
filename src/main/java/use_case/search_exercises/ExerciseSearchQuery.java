@@ -1,29 +1,48 @@
 package use_case.search_exercises;
 
+import java.util.Locale;
+
 import entity.BodyPart;
 
 /**
- * What to search the exercise library for. Every part is optional: a blank name, or a
- * {@code null} body part or equipment, means "don't filter on this".
+ * What to search the exercise library for. Every part is optional: a {@code null} part means
+ * "don't filter on this".
  *
- * <p>It is a record, so two queries with the same parts are equal and can be used as a map key.
+ * <p>The name and equipment are trimmed and lower-cased, and blank text becomes {@code null}, so
+ * searches that differ only in letter case or surrounding spaces are equal. Every data-access
+ * implementation receives the same cleaned-up query, and equal queries can share a map key.
  *
- * @param name      part of the exercise name, such as "press"; may be blank
+ * @param name      part of the exercise name, such as "press", or {@code null} for any
  * @param bodyPart  the body part to keep, or {@code null} for any
  * @param equipment the equipment to keep, such as "barbell", or {@code null} for any
  */
 public record ExerciseSearchQuery(String name, BodyPart bodyPart, String equipment) {
 
     /**
-     * Tells whether the query filters on nothing at all.
+     * Creates a query, cleaning up the name and equipment as described above.
      *
-     * @return {@code true} if the name is blank and no body part or equipment is chosen
+     * @param name      part of the exercise name; may be blank or {@code null}
+     * @param bodyPart  the body part to keep, or {@code null} for any
+     * @param equipment the equipment to keep; may be blank or {@code null}
      */
-    public boolean isEmpty() {
-        return isBlank(name) && bodyPart == null && isBlank(equipment);
+    public ExerciseSearchQuery {
+        name = normalize(name);
+        equipment = normalize(equipment);
     }
 
-    private static boolean isBlank(String value) {
-        return value == null || value.isBlank();
+    /**
+     * Tells whether the query filters on nothing at all.
+     *
+     * @return {@code true} if no name, body part or equipment is given
+     */
+    public boolean isEmpty() {
+        return name == null && bodyPart == null && equipment == null;
+    }
+
+    private static String normalize(String text) {
+        if (text == null || text.isBlank()) {
+            return null;
+        }
+        return text.strip().toLowerCase(Locale.ROOT);
     }
 }

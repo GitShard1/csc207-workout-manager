@@ -50,6 +50,18 @@ class SearchExercisesInteractorTest {
     }
 
     @Test
+    void libraryReceivesTheTrimmedLowerCaseQuery() {
+        FakeExerciseSearch library = FakeExerciseSearch.returning(List.of());
+
+        new SearchExercisesInteractor(library, presenter)
+                .execute(new SearchExercisesInputData("  Bench Press ", null, "   "));
+
+        ExerciseSearchQuery sent = library.getReceivedQueries().get(0);
+        assertEquals("bench press", sent.name());
+        assertNull(sent.equipment());
+    }
+
+    @Test
     void noMatchesIsASuccessWithNoResults() {
         new SearchExercisesInteractor(FakeExerciseSearch.returning(List.of()), presenter)
                 .execute(new SearchExercisesInputData("zzz", null, null));

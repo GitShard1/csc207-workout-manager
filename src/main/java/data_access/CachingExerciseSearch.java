@@ -2,7 +2,6 @@ package data_access;
 
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 import entity.Exercise;
@@ -15,8 +14,8 @@ import use_case.search_exercises.ExerciseSearchQuery;
  * It wraps another exercise search and looks the same from outside (the Decorator pattern), so
  * the use case can't tell whether it is talking to the cache or to the real library.
  *
- * <p>Queries that differ only in letter case or surrounding spaces count as the same search.
- * Failures are never remembered: the next try asks the wrapped search again.
+ * <p>Equal queries share results; {@link ExerciseSearchQuery} already ignores letter case and
+ * surrounding spaces. Failures are never remembered: the next try asks the wrapped search again.
  */
 public class CachingExerciseSearch implements ExerciseSearchDataAccessInterface {
     private final ExerciseSearchDataAccessInterface wrapped;
@@ -36,27 +35,17 @@ public class CachingExerciseSearch implements ExerciseSearchDataAccessInterface 
      * Returns the cached results for this query, or asks the wrapped search and caches its answer.
      *
      * @param query what to search for
-     * @return the matching exercises
+     * @return the matching exercises; the list cannot be modified, so callers can't change the cache
      * @throws ExerciseLibraryUnavailableException if the query isn't cached and the wrapped search fails
      */
     @Override
     public List<Exercise> search(ExerciseSearchQuery query) throws ExerciseLibraryUnavailableException {
-        ExerciseSearchQuery key = normalize(query);
-        List<Exercise> cached = resultsByQuery.get(key);
+        List<Exercise> cached = resultsByQuery.get(query);
         if (cached != null) {
             return cached;
         }
-        List<Exercise> results = wrapped.search(key);
-        resultsByQuery.put(key, results);
+        List<Exercise> results = List.copyOf(wrapped.search(query));
+        resultsByQuery.put(query, results);
         return results;
-    }
-
-    private static ExerciseSearchQuery normalize(ExerciseSearchQuery query) {
-        return new ExerciseSearchQuery(normalizeText(query.name()), query.bodyPart(),
-                normalizeText(query.equipment()));
-    }
-
-    private static String normalizeText(String text) {
-        return text == null ? null : text.trim().toLowerCase(Locale.ROOT);
     }
 }
