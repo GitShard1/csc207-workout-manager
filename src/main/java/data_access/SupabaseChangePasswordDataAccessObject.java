@@ -85,8 +85,7 @@ public class SupabaseChangePasswordDataAccessObject implements ChangePasswordUse
         JsonObject reply = SupabaseJson.object(SupabaseJson.parse(response.body()));
         String errorCode = SupabaseJson.string(reply, "error_code");
 
-        // Supabase's codes for a new password it won't take
-        if ("weak_password".equals(errorCode) || "same_password".equals(errorCode)) {
+        if (SupabaseJson.isPasswordRejected(errorCode)) {
             return Result.REJECTED;
         }
 

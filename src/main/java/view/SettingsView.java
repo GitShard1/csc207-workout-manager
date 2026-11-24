@@ -40,9 +40,9 @@ public final class SettingsView extends AccountForm {
     @Override
     protected void submit() {
         // Read without clearing, so a typo doesn't make you retype everything (cleared on success in render)
-        final String currentPassword = new String(currentPasswordField.getPassword());
-        final String newPassword = new String(newPasswordField.getPassword());
-        final String confirmPassword = new String(confirmPasswordField.getPassword());
+        final String currentPassword = readPassword(currentPasswordField);
+        final String newPassword = readPassword(newPasswordField);
+        final String confirmPassword = readPassword(confirmPasswordField);
 
         startAction("Changing password…");
 

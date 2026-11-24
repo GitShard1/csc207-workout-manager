@@ -65,7 +65,7 @@ public class ChangePasswordInteractor implements ChangePasswordInputBoundary {
             return "Password inputted is empty.";
         }
 
-        // Supabase needs at least 8, so catch it here with a clearer message
+        // Supabase needs at least MIN_LENGTH too, so catch it here with a clearer message
         if (!AccountPassword.isLongEnough(newPassword)) {
             return "New password must be at least " + AccountPassword.MIN_LENGTH + " characters.";
         }
