@@ -3,8 +3,12 @@ package app;
 import data_access.InMemorySessionStore;
 import data_access.SupabaseAuthDataAccessObject;
 import data_access.SupabaseClient;
+import data_access.SupabaseFollowingDao;
 import data_access.SupabaseProfileDao;
 import interface_adapter.ViewManagerModel;
+import interface_adapter.following.FollowingController;
+import interface_adapter.following.FollowingPresenter;
+import interface_adapter.following.FollowingViewModel;
 import interface_adapter.home.HomeViewModel;
 import interface_adapter.login.LogInController;
 import interface_adapter.login.LogInPresenter;
@@ -14,9 +18,11 @@ import interface_adapter.logout.LogOutPresenter;
 import interface_adapter.register.RegisterController;
 import interface_adapter.register.RegisterPresenter;
 import interface_adapter.register.RegisterViewModel;
+import use_case.following.FollowingInteractor;
 import use_case.login.LogInInteractor;
 import use_case.logout.LogOutInteractor;
 import use_case.register.RegisterInteractor;
+import view.FollowingView;
 import view.HomeView;
 import view.LogInView;
 import view.RegisterView;
@@ -59,6 +65,7 @@ public final class WorkoutManagerApp {
         final LogInViewModel logInViewModel = new LogInViewModel();
         final RegisterViewModel registerViewModel = new RegisterViewModel();
         final HomeViewModel homeViewModel = new HomeViewModel();
+        final FollowingViewModel followingViewModel = new FollowingViewModel();
 
         final LogInController logIn = new LogInController(new LogInInteractor(auth, profiles, session,
                 new LogInPresenter(viewManagerModel, logInViewModel, homeViewModel)));
@@ -66,12 +73,15 @@ public final class WorkoutManagerApp {
                 session, new RegisterPresenter(viewManagerModel, registerViewModel, homeViewModel)));
         final LogOutController logOut = new LogOutController(new LogOutInteractor(session, auth,
                 new LogOutPresenter(viewManagerModel, logInViewModel, homeViewModel)));
+        final FollowingController following = new FollowingController(new FollowingInteractor(session,
+                new SupabaseFollowingDao(client, session), new FollowingPresenter(followingViewModel)));
 
         final ViewManager views = new ViewManager(viewManagerModel);
         final LogInView logInView = new LogInView(logInViewModel, logIn, viewManagerModel);
         views.addView(LogInViewModel.VIEW_NAME, logInView);
         views.addView(RegisterViewModel.VIEW_NAME, new RegisterView(registerViewModel, register, viewManagerModel));
-        views.addView(HomeViewModel.VIEW_NAME, new HomeView(homeViewModel, logOut));
+        views.addView(HomeViewModel.VIEW_NAME, new HomeView(homeViewModel, logOut, viewManagerModel));
+        views.addView(FollowingViewModel.VIEW_NAME, new FollowingView(followingViewModel, following, viewManagerModel));
 
         final JFrame frame = new JFrame("Workout Manager");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
