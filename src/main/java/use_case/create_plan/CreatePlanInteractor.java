@@ -2,7 +2,9 @@ package use_case.create_plan;
 
 import entity.Exercise;
 import entity.PlannedExercise;
+import entity.User;
 import entity.WorkoutPlan;
+import use_case.account.CurrentUserReader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -11,23 +13,32 @@ public class CreatePlanInteractor implements CreatePlanInputBoundary {
     private static final int MAX_NAME_LENGTH = 50;
     private final CreatePlanDataAccessInterface planDataAccess;
     private final ExerciseLookupDataAccessInterface exerciseLookup;
+    private final CurrentUserReader currentUserReader;
     private final CreatePlanOutputBoundary presenter;
 
     public CreatePlanInteractor(CreatePlanDataAccessInterface planDataAccess,
                                 ExerciseLookupDataAccessInterface exerciseLookup,
+                                CurrentUserReader currentUserReader,
                                 CreatePlanOutputBoundary presenter) {
         this.planDataAccess = planDataAccess;
         this.exerciseLookup = exerciseLookup;
+        this.currentUserReader = currentUserReader;
         this.presenter = presenter;
     }
 
     @Override
     public void execute(CreatePlanInputData inputData) {
-        UUID ownerId = inputData.ownerId();
+        User currentUser = currentUserReader.currentUser().orElse(null);
+        if (currentUser == null) {
+            presenter.prepareFailView("No user is logged in.");
+            return;
+        }
+
+        UUID ownerId = currentUser.getUserID();
         String name = inputData.name();
         List<CreatePlanInputData.ExerciseEntry> exercises = inputData.exercises();
 
-        String inputCheck = inputChecker(ownerId, name, exercises);
+        String inputCheck = inputChecker(name, exercises);
         if (!inputCheck.isBlank()) {
             presenter.prepareFailView(inputCheck);
             return;
@@ -63,11 +74,8 @@ public class CreatePlanInteractor implements CreatePlanInputBoundary {
     /**
      Helper method to check whether the entered input is correct. Returns empty string when correct.
      */
-    private String inputChecker(UUID ownerId, String name, List<CreatePlanInputData.ExerciseEntry> exercises) {
-        if (ownerId == null) {
-            return "No user is logged in.";
-        }
-        else if (name == null || name.isBlank()) {
+    private String inputChecker(String name, List<CreatePlanInputData.ExerciseEntry> exercises) {
+        if (name == null || name.isBlank()) {
             return "Plan name is required.";
         }
         else if (name.length() > MAX_NAME_LENGTH) {

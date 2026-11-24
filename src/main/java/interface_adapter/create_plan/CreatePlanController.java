@@ -5,7 +5,6 @@ import use_case.create_plan.CreatePlanInputData;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 public class CreatePlanController {
     private final CreatePlanInputBoundary interactor;
@@ -14,7 +13,7 @@ public class CreatePlanController {
         this.interactor = interactor;
     }
 
-    public void execute(UUID ownerId, String name, List<String> exerciseIds, List<Integer> sets, List<Integer> reps,
+    public void execute(String name, List<String> exerciseIds, List<Integer> sets, List<Integer> reps,
                         List<Double> weights) {
         ArrayList<CreatePlanInputData.ExerciseEntry> exerciseEntries = new ArrayList<>();
         String trimmedName = null;
@@ -33,7 +32,7 @@ public class CreatePlanController {
                     weights.get(i)));
         }
 
-        CreatePlanInputData inputData = new CreatePlanInputData(ownerId, trimmedName, exerciseEntries);
+        CreatePlanInputData inputData = new CreatePlanInputData(trimmedName, exerciseEntries);
 
         interactor.execute(inputData);
     }
