@@ -1,5 +1,6 @@
 package data_access;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import entity.BodyPart;
@@ -37,6 +38,17 @@ class CachingExerciseSearchTest {
         cache.search(new ExerciseSearchQuery("bench", BodyPart.CHEST, null));
 
         assertEquals(2, library.getReceivedQueries().size());
+    }
+
+    @Test
+    void callersCannotChangeTheCachedResults() throws ExerciseLibraryUnavailableException {
+        CachingExerciseSearch cache = new CachingExerciseSearch(query -> new ArrayList<>(List.of(BENCH_PRESS)));
+        ExerciseSearchQuery query = new ExerciseSearchQuery("bench", null, null);
+
+        List<Exercise> first = cache.search(query);
+
+        assertThrows(UnsupportedOperationException.class, first::clear);
+        assertEquals(List.of(BENCH_PRESS), cache.search(query));
     }
 
     @Test

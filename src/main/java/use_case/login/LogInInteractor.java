@@ -4,38 +4,41 @@ import entity.User;
 import use_case.account.AccountEmail;
 import use_case.account.AccountProfile;
 import use_case.account.AuthSession;
-import use_case.account.ProfileGateway;
-import use_case.account.SessionStarter;
+import use_case.account.ProfileDataAccessInterface;
+import use_case.account.StartSessionDataAccessInterface;
 
 import java.util.Optional;
 
 public final class LogInInteractor implements LogInInputBoundary {
-    private final SignInGateway auth;
-    private final ProfileGateway profiles;
-    private final SessionStarter sessions;
-    private final LogInOutputBoundary output;
+    private final SignInDataAccessInterface auth;
+    private final ProfileDataAccessInterface profiles;
+    private final StartSessionDataAccessInterface sessions;
+    private final LogInOutputBoundary presenter;
 
-    public LogInInteractor(SignInGateway auth, ProfileGateway profiles, SessionStarter sessions,
-                           LogInOutputBoundary output) {
+    public LogInInteractor(SignInDataAccessInterface auth, ProfileDataAccessInterface profiles,
+                           StartSessionDataAccessInterface sessions, LogInOutputBoundary presenter) {
         this.auth = auth;
         this.profiles = profiles;
         this.sessions = sessions;
-        this.output = output;
+        this.presenter = presenter;
     }
 
     @Override
-    public void execute(LogInRequest request) {
-        final Optional<String> email = AccountEmail.parse(request.email());
-        final String password = request.password();
+    public void execute(LogInInputData inputData) {
+        final Optional<String> email = AccountEmail.parse(inputData.email());
+        final String password = inputData.password();
         if (email.isEmpty() || password == null || password.isEmpty()) {
-            output.present(LogInResponse.Failure.BAD_CREDENTIALS);
+            presenter.prepareFailView(LogInFailure.BAD_CREDENTIALS);
             return;
         }
         switch (auth.signIn(email.get(), password)) {
-            case SignInGateway.SignedIn(AuthSession session) -> startSession(session);
-            case SignInGateway.Failure.BAD_CREDENTIALS -> output.present(LogInResponse.Failure.BAD_CREDENTIALS);
-            case SignInGateway.Failure.NO_USABLE_SESSION -> output.present(LogInResponse.Failure.NO_USABLE_SESSION);
-            case SignInGateway.Failure.RETRYABLE_FAILURE -> output.present(LogInResponse.Failure.RETRYABLE_FAILURE);
+            case SignInDataAccessInterface.SignedIn(AuthSession session) -> startSession(session);
+            case SignInDataAccessInterface.Failure.BAD_CREDENTIALS ->
+                    presenter.prepareFailView(LogInFailure.BAD_CREDENTIALS);
+            case SignInDataAccessInterface.Failure.NO_USABLE_SESSION ->
+                    presenter.prepareFailView(LogInFailure.NO_USABLE_SESSION);
+            case SignInDataAccessInterface.Failure.RETRYABLE_FAILURE ->
+                    presenter.prepareFailView(LogInFailure.RETRYABLE_FAILURE);
         }
     }
 
@@ -43,10 +46,10 @@ public final class LogInInteractor implements LogInInputBoundary {
     private void startSession(AuthSession session) {
         final Optional<User> user = profiles.loadProfile(session);
         if (user.isEmpty()) {
-            output.present(LogInResponse.Failure.RETRYABLE_FAILURE);
+            presenter.prepareFailView(LogInFailure.RETRYABLE_FAILURE);
             return;
         }
         sessions.start(session, user.get());
-        output.present(new LogInResponse.Success(AccountProfile.from(user.get())));
+        presenter.prepareSuccessView(new LogInOutputData(AccountProfile.from(user.get())));
     }
 }

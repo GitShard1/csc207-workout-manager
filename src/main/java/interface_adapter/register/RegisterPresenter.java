@@ -3,8 +3,9 @@ package interface_adapter.register;
 import interface_adapter.ViewManagerModel;
 import interface_adapter.home.HomeViewModel;
 import interface_adapter.register.RegisterState.Field;
+import use_case.register.RegisterFailure;
 import use_case.register.RegisterOutputBoundary;
-import use_case.register.RegisterResponse;
+import use_case.register.RegisterOutputData;
 
 public final class RegisterPresenter implements RegisterOutputBoundary {
     private final ViewManagerModel viewManager;
@@ -18,18 +19,18 @@ public final class RegisterPresenter implements RegisterOutputBoundary {
     }
 
     @Override
-    public void present(RegisterResponse response) {
-        switch (response) {
-            case RegisterResponse.Success(var profile) -> {
-                home.showSignedIn(profile);
-                register.setState(RegisterState.empty());
-                viewManager.setState(home.getViewName());
-            }
-            case RegisterResponse.Failure failure -> register.setState(error(failure));
-        }
+    public void prepareSuccessView(RegisterOutputData outputData) {
+        home.showSignedIn(outputData.profile());
+        register.setState(RegisterState.empty());
+        viewManager.setState(home.getViewName());
     }
 
-    private static RegisterState error(RegisterResponse.Failure failure) {
+    @Override
+    public void prepareFailView(RegisterFailure failure) {
+        register.setState(error(failure));
+    }
+
+    private static RegisterState error(RegisterFailure failure) {
         return switch (failure) {
             case INVALID_EMAIL -> new RegisterState(Field.EMAIL, "Enter a valid email address.");
             case INVALID_USERNAME ->

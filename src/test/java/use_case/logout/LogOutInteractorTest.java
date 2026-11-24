@@ -13,12 +13,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class LogOutInteractorTest {
     private final List<String> events = new ArrayList<>();
     private final LogOutOutputBoundary presenter = () -> events.add("present signed out");
-    private final SessionRevocationGateway revocation = session -> events.add("revoke " + session.accessToken());
+    private final SessionRevocationDataAccessInterface revocation =
+            session -> events.add("revoke " + session.accessToken());
 
     @Test
     void signsOutLocallyBeforeRevokingTheEndedSession() {
         final AuthSession session = new AuthSession(UUID.randomUUID(), "token");
-        final LogOutSessionGateway sessions = () -> {
+        final LogOutSessionDataAccessInterface sessions = () -> {
             events.add("end local session");
             return Optional.of(session);
         };
