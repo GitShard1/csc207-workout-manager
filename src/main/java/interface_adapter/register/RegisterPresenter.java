@@ -3,6 +3,7 @@ package interface_adapter.register;
 import interface_adapter.ViewManagerModel;
 import interface_adapter.home.HomeViewModel;
 import interface_adapter.register.RegisterState.Field;
+import use_case.account.AccountPassword;
 import use_case.register.RegisterFailure;
 import use_case.register.RegisterOutputBoundary;
 import use_case.register.RegisterOutputData;
@@ -36,7 +37,8 @@ public final class RegisterPresenter implements RegisterOutputBoundary {
             case INVALID_USERNAME ->
                     new RegisterState(Field.USERNAME, "Use 3–24 letters (A–Z), digits or underscores.");
             case INVALID_DISPLAY_NAME -> new RegisterState(Field.DISPLAY_NAME, "Enter a display name.");
-            case PASSWORD_TOO_SHORT -> new RegisterState(Field.PASSWORD, "Use at least 8 characters.");
+            case PASSWORD_TOO_SHORT -> new RegisterState(Field.PASSWORD,
+                    "Use at least " + AccountPassword.MIN_LENGTH + " characters.");
             case PASSWORD_REJECTED -> new RegisterState(Field.PASSWORD, "Choose a different password.");
             case PASSWORD_MISMATCH -> new RegisterState(Field.CONFIRM_PASSWORD, "Passwords don't match.");
             case USERNAME_TAKEN -> new RegisterState(Field.USERNAME, "That username is taken.");
