@@ -1,12 +1,16 @@
 package use_case.following;
 
+import entity.Follow;
 import entity.User;
-import use_case.account.AccountProfile;
 import use_case.account.CurrentUserDataAccessInterface;
 import use_case.following.FollowingDataAccessInterface.RequestFailed;
+import use_case.following.FollowingDataAccessInterface.SaveResult;
 import use_case.following.FollowingOutputBoundary.Failure;
 
-public final class FollowingInteractor implements FollowingInputBoundary {
+import java.util.UUID;
+
+public final class FollowingInteractor
+        implements LoadFollowingInputBoundary, FindFollowAccountInputBoundary, FollowAccountInputBoundary {
     private final CurrentUserDataAccessInterface currentUser;
     private final FollowingDataAccessInterface bookmarks;
     private final FollowingOutputBoundary presenter;
@@ -22,7 +26,7 @@ public final class FollowingInteractor implements FollowingInputBoundary {
     public void loadFollowing() {
         currentUser.currentUser().ifPresentOrElse(user -> {
             try {
-                presenter.showFollowing(bookmarks.list(user.getUserID()));
+                presenter.showFollowing(new FollowingListOutputData(bookmarks.list(user.getUserID())));
             } catch (RequestFailed ignored) {
                 presenter.showFailure(Failure.LOAD_FAILED);
             }
@@ -30,8 +34,8 @@ public final class FollowingInteractor implements FollowingInputBoundary {
     }
 
     @Override
-    public void findAccount(String username) {
-        currentUser.currentUser().ifPresentOrElse(user -> findAccount(user, username), this::requireSignIn);
+    public void findAccount(FindFollowAccountInputData input) {
+        currentUser.currentUser().ifPresentOrElse(user -> findAccount(user, input.username()), this::requireSignIn);
     }
 
     private void findAccount(User viewer, String input) {
@@ -41,7 +45,8 @@ public final class FollowingInteractor implements FollowingInputBoundary {
             return;
         }
         try {
-            bookmarks.findByUsername(viewer.getUserID(), username).ifPresentOrElse(presenter::showAccount,
+            bookmarks.findByUsername(viewer.getUserID(), username).ifPresentOrElse(
+                    account -> presenter.showAccount(new FollowingAccountOutputData(account)),
                     () -> presenter.showFailure(Failure.ACCOUNT_NOT_FOUND));
         } catch (RequestFailed ignored) {
             presenter.showFailure(Failure.LOOKUP_FAILED);
@@ -49,17 +54,25 @@ public final class FollowingInteractor implements FollowingInputBoundary {
     }
 
     @Override
-    public void follow(AccountProfile account) {
-        currentUser.currentUser().ifPresentOrElse(user -> follow(user, account), this::requireSignIn);
+    public void follow(FollowAccountInputData input) {
+        currentUser.currentUser().ifPresentOrElse(user -> follow(user, input.followedId()), this::requireSignIn);
     }
 
-    private void follow(User viewer, AccountProfile account) {
-        if (viewer.getUserID().equals(account.userID())) {
+    private void follow(User viewer, UUID followedId) {
+        if (followedId == null) {
+            presenter.showFailure(Failure.ACCOUNT_NOT_FOUND);
+            return;
+        }
+        final Follow follow;
+        try {
+            follow = new Follow(viewer.getUserID(), followedId);
+        } catch (IllegalArgumentException ignored) {
             presenter.showFailure(Failure.CANNOT_FOLLOW_SELF);
             return;
         }
         try {
-            presenter.showSaved(account, bookmarks.save(viewer.getUserID(), account.userID()));
+            final SaveResult result = bookmarks.save(follow);
+            presenter.showSaved(new FollowSavedOutputData(followedId, result == SaveResult.ALREADY_FOLLOWING));
         } catch (RequestFailed ignored) {
             presenter.showFailure(Failure.SAVE_FAILED);
         }

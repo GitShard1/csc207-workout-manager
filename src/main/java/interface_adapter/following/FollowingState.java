@@ -1,10 +1,9 @@
 package interface_adapter.following;
 
-import use_case.account.AccountProfile;
-
 import java.util.List;
+import java.util.UUID;
 
-public record FollowingState(AccountProfile result, List<AccountProfile> accounts, String message) {
+public record FollowingState(Item result, List<Item> accounts, String message) {
     public FollowingState {
         accounts = List.copyOf(accounts);
     }
@@ -12,4 +11,7 @@ public record FollowingState(AccountProfile result, List<AccountProfile> account
     public static FollowingState empty() {
         return new FollowingState(null, List.of(), "");
     }
+
+    /** Display data derived from a profile returned by the account service. */
+    public record Item(UUID accountId, String username, String label) { }
 }

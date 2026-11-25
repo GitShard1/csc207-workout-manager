@@ -5,7 +5,6 @@ import interface_adapter.following.FollowingController;
 import interface_adapter.following.FollowingState;
 import interface_adapter.following.FollowingViewModel;
 import interface_adapter.home.HomeViewModel;
-import use_case.account.AccountProfile;
 
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
@@ -71,9 +70,9 @@ public final class FollowingView extends JPanel {
             run("Searching...", () -> controller.findAccount(query));
         });
         follow.addActionListener(event -> {
-            final AccountProfile account = viewModel.getState().result();
+            final FollowingState.Item account = viewModel.getState().result();
             if (account != null) {
-                run("Saving follow...", () -> controller.follow(account));
+                run("Saving follow...", () -> controller.follow(account.accountId()));
             }
         });
         refresh.addActionListener(event -> loadFollowing());
@@ -105,10 +104,10 @@ public final class FollowingView extends JPanel {
     }
 
     private void render(FollowingState state) {
-        final AccountProfile account = state.result();
-        result.setText(account == null ? "" : profileLabel(account));
+        final FollowingState.Item account = state.result();
+        result.setText(account == null ? "" : account.label());
         follow.setVisible(account != null);
-        accounts.setListData(state.accounts().stream().map(FollowingView::profileLabel).toArray(String[]::new));
+        accounts.setListData(state.accounts().stream().map(FollowingState.Item::label).toArray(String[]::new));
         status.setText(state.message().isEmpty() ? " " : state.message());
     }
 
@@ -118,9 +117,5 @@ public final class FollowingView extends JPanel {
         follow.setEnabled(!busy);
         refresh.setEnabled(!busy);
         back.setEnabled(!busy);
-    }
-
-    private static String profileLabel(AccountProfile account) {
-        return "@" + account.username() + " - " + account.displayName();
     }
 }

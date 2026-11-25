@@ -58,6 +58,10 @@ classDiagram
         double weight
         int reps
     }
+    class Follow {
+        UUID followerId
+        UUID followedId
+    }
     class FriendRequest {
         UUID friendReqID
         UUID senderID
@@ -82,6 +86,7 @@ classDiagram
 
     %% ID-only references (no object link)
     Workout ..> WorkoutPlan : planID
+    Follow ..> User : followerId, followedId
     FriendRequest ..> User : senderID, targetID
     Friendship ..> User : userA, userB
 ```

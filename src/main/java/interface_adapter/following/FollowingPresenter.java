@@ -1,7 +1,10 @@
 package interface_adapter.following;
 
+import interface_adapter.following.FollowingState.Item;
 import use_case.account.AccountProfile;
-import use_case.following.FollowingDataAccessInterface.SaveResult;
+import use_case.following.FollowSavedOutputData;
+import use_case.following.FollowingAccountOutputData;
+import use_case.following.FollowingListOutputData;
 import use_case.following.FollowingOutputBoundary;
 
 import java.util.ArrayList;
@@ -15,25 +18,29 @@ public final class FollowingPresenter implements FollowingOutputBoundary {
     }
 
     @Override
-    public void showFollowing(List<AccountProfile> accounts) {
+    public void showFollowing(FollowingListOutputData output) {
+        final List<Item> accounts = output.accounts().stream().map(FollowingPresenter::item).toList();
         final String message = accounts.isEmpty() ? "You aren't following anyone yet." : "";
         viewModel.setState(new FollowingState(viewModel.getState().result(), accounts, message));
     }
 
     @Override
-    public void showAccount(AccountProfile account) {
-        viewModel.setState(new FollowingState(account, viewModel.getState().accounts(), ""));
+    public void showAccount(FollowingAccountOutputData output) {
+        viewModel.setState(new FollowingState(item(output.account()), viewModel.getState().accounts(), ""));
     }
 
     @Override
-    public void showSaved(AccountProfile account, SaveResult result) {
-        final List<AccountProfile> accounts = new ArrayList<>(viewModel.getState().accounts());
-        if (accounts.stream().noneMatch(saved -> saved.userID().equals(account.userID()))) {
-            accounts.addFirst(account);
+    public void showSaved(FollowSavedOutputData output) {
+        final FollowingState state = viewModel.getState();
+        final Item selected = state.result();
+        final boolean matches = selected != null && selected.accountId().equals(output.followedId());
+        final List<Item> accounts = new ArrayList<>(state.accounts());
+        if (matches && accounts.stream().noneMatch(saved -> saved.accountId().equals(output.followedId()))) {
+            accounts.addFirst(selected);
         }
-        final String message = result == SaveResult.SAVED ? "Now following @" + account.username() + "."
-                : "Already following";
-        viewModel.setState(new FollowingState(account, accounts, message));
+        final String confirmation = matches ? "Now following @" + selected.username() + "." : "Account followed.";
+        final String message = output.alreadyFollowing() ? "Already following" : confirmation;
+        viewModel.setState(new FollowingState(selected, accounts, message));
     }
 
     @Override
@@ -52,5 +59,9 @@ public final class FollowingPresenter implements FollowingOutputBoundary {
                     new FollowingState(state.result(), state.accounts(), "Couldn't save the follow. Try again.");
         };
         viewModel.setState(next);
+    }
+
+    private static Item item(AccountProfile profile) {
+        return new Item(profile.userID(), profile.username(), "@" + profile.username() + " - " + profile.displayName());
     }
 }

@@ -79,8 +79,10 @@ public final class WorkoutManagerApp {
                 session, new RegisterPresenter(viewManagerModel, registerViewModel, homeViewModel)));
         final LogOutController logOut = new LogOutController(new LogOutInteractor(session, auth,
                 new LogOutPresenter(viewManagerModel, logInViewModel, homeViewModel)));
-        final FollowingController following = new FollowingController(new FollowingInteractor(session,
-                new SupabaseFollowingDao(client, session), new FollowingPresenter(followingViewModel)));
+        final FollowingInteractor followingInteractor = new FollowingInteractor(session,
+                new SupabaseFollowingDao(client, session), new FollowingPresenter(followingViewModel));
+        final FollowingController following = new FollowingController(
+                followingInteractor, followingInteractor, followingInteractor);
 
         // Change Password (#22)
         final SettingsViewModel settingsViewModel = new SettingsViewModel();

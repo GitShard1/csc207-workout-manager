@@ -1,15 +1,11 @@
 package use_case.following;
 
-import use_case.account.AccountProfile;
-
-import java.util.List;
-
 public interface FollowingOutputBoundary {
-    void showFollowing(List<AccountProfile> accounts);
+    void showFollowing(FollowingListOutputData output);
 
-    void showAccount(AccountProfile account);
+    void showAccount(FollowingAccountOutputData output);
 
-    void showSaved(AccountProfile account, FollowingDataAccessInterface.SaveResult result);
+    void showSaved(FollowSavedOutputData output);
 
     void showFailure(Failure failure);
 

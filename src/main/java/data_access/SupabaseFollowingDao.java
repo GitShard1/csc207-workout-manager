@@ -2,6 +2,7 @@ package data_access;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import entity.Follow;
 import entity.User;
 import use_case.account.AccountProfile;
 import use_case.following.FollowingDataAccessInterface;
@@ -44,10 +45,10 @@ public final class SupabaseFollowingDao implements FollowingDataAccessInterface 
     }
 
     @Override
-    public SaveResult save(UUID viewerId, UUID followedId) throws RequestFailed {
+    public SaveResult save(Follow follow) throws RequestFailed {
         final JsonObject body = new JsonObject();
-        body.addProperty("followed_id", followedId.toString());
-        final HttpResponse<String> response = post(viewerId, "/rest/v1/follows", body);
+        body.addProperty("followed_id", follow.followedId().toString());
+        final HttpResponse<String> response = post(follow.followerId(), "/rest/v1/follows", body);
         if (response.statusCode() == 201) {
             return SaveResult.SAVED;
         }
