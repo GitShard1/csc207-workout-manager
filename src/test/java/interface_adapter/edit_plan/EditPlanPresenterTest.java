@@ -1,5 +1,7 @@
 package interface_adapter.edit_plan;
 
+import interface_adapter.ViewManagerModel;
+import interface_adapter.home.HomeViewModel;
 import interface_adapter.plan_editor.PlanEditorState;
 import interface_adapter.plan_editor.PlanEditorViewModel;
 import org.junit.jupiter.api.Test;
@@ -15,7 +17,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class EditPlanPresenterTest {
     private final PlanEditorViewModel planEditorViewModel = new PlanEditorViewModel();
-    private final EditPlanPresenter presenter = new EditPlanPresenter(planEditorViewModel);
+    private final ViewManagerModel viewManagerModel = new ViewManagerModel(HomeViewModel.VIEW_NAME);
+    private final EditPlanPresenter presenter = new EditPlanPresenter(planEditorViewModel, viewManagerModel);
 
     private final UUID planId = UUID.randomUUID();
     private final EditPlanOutputData pushDay = new EditPlanOutputData(planId, "Push Day",
@@ -26,12 +29,13 @@ class EditPlanPresenterTest {
         presenter.prepareSuccessView(pushDay);
 
         PlanEditorState state = planEditorViewModel.getState();
-        assertEquals(planId, state.getPlanId());
+        assertEquals(planId, state.planId());
         assertFalse(state.isNewPlan());
-        assertEquals("Push Day", state.getName());
+        assertEquals("Push Day", state.name());
         assertEquals(List.of(new PlanEditorState.ExerciseRow("0025", "Barbell Bench Press", 3, 8, 60.0)),
-                state.getExercises());
-        assertNull(state.getError());
+                state.exercises());
+        assertNull(state.error());
+        assertEquals(PlanEditorViewModel.VIEW_NAME, viewManagerModel.getState());
     }
 
     @Test
@@ -39,8 +43,11 @@ class EditPlanPresenterTest {
         presenter.prepareSuccessView(pushDay);
         presenter.prepareFailView("Plan name is required.");
 
-        assertEquals("Plan name is required.", planEditorViewModel.getState().getError());
-        assertEquals("Push Day", planEditorViewModel.getState().getName());
+        assertEquals("Plan name is required.", planEditorViewModel.getState().error());
+        assertEquals("Push Day", planEditorViewModel.getState().name());
+        assertEquals(planId, planEditorViewModel.getState().planId());
+        assertEquals(List.of(new PlanEditorState.ExerciseRow("0025", "Barbell Bench Press", 3, 8, 60.0)),
+                planEditorViewModel.getState().exercises());
     }
 
     @Test
@@ -48,7 +55,7 @@ class EditPlanPresenterTest {
         presenter.prepareFailView("Plan name is required.");
         presenter.prepareSuccessView(pushDay);
 
-        assertNull(planEditorViewModel.getState().getError());
+        assertNull(planEditorViewModel.getState().error());
     }
 
     @Test
@@ -57,8 +64,17 @@ class EditPlanPresenterTest {
         presenter.prepareDeleteSuccessView();
 
         assertTrue(planEditorViewModel.getState().isNewPlan());
-        assertEquals("", planEditorViewModel.getState().getName());
-        assertTrue(planEditorViewModel.getState().getExercises().isEmpty());
+        assertEquals("", planEditorViewModel.getState().name());
+        assertTrue(planEditorViewModel.getState().exercises().isEmpty());
+        assertEquals(HomeViewModel.VIEW_NAME, viewManagerModel.getState());
+    }
+
+    @Test
+    void failStaysOnTheSameScreenTest() {
+        viewManagerModel.setState(PlanEditorViewModel.VIEW_NAME);
+        presenter.prepareFailView("Plan not found.");
+
+        assertEquals(PlanEditorViewModel.VIEW_NAME, viewManagerModel.getState());
     }
 
     @Test

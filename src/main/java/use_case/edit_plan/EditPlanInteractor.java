@@ -28,7 +28,7 @@ public class EditPlanInteractor implements EditPlanInputBoundary {
 
     @Override
     public void loadPlan(UUID planId) {
-        WorkoutPlan targetPlan = findEditablePlan(planId);
+        final WorkoutPlan targetPlan = findEditablePlan(planId);
         if (targetPlan == null) {
             return;
         }
@@ -38,15 +38,15 @@ public class EditPlanInteractor implements EditPlanInputBoundary {
 
     @Override
     public void execute(EditPlanInputData inputData) {
-        String name = inputData.name();
-        List<EditPlanInputData.ExerciseEntry> exercises = inputData.exercises();
+        final String name = inputData.name();
+        final List<EditPlanInputData.ExerciseEntry> exercises = inputData.exercises();
 
-        WorkoutPlan targetPlan = findEditablePlan(inputData.planId());
+        final WorkoutPlan targetPlan = findEditablePlan(inputData.planId());
         if (targetPlan == null) {
             return;
         }
 
-        String inputCheck = PlanInputValidator.checkInput(name, exercises);
+        final String inputCheck = PlanInputValidator.checkInput(name, exercises);
         if (!inputCheck.isBlank()) {
             presenter.prepareFailView(inputCheck);
             return;
@@ -57,11 +57,11 @@ public class EditPlanInteractor implements EditPlanInputBoundary {
             return;
         }
 
-        ArrayList<PlannedExercise> checkedExercises = new ArrayList<>();
+        final ArrayList<PlannedExercise> checkedExercises = new ArrayList<>();
         int row = 0;
         for (EditPlanInputData.ExerciseEntry entry : exercises) {
             row += 1;
-            Exercise exercise = exerciseLookup.findById(entry.exerciseId());
+            final Exercise exercise = exerciseLookup.findById(entry.exerciseId());
             if (exercise == null) {
                 presenter.prepareFailView("Row " + row + ": exercise not found.");
                 return;
@@ -69,7 +69,7 @@ public class EditPlanInteractor implements EditPlanInputBoundary {
             checkedExercises.add(new PlannedExercise(exercise, entry.sets(), entry.reps(), entry.weight()));
         }
 
-        WorkoutPlan editedWorkoutPlan = new WorkoutPlan(targetPlan.getWorkoutPlanID(), name,
+        final WorkoutPlan editedWorkoutPlan = new WorkoutPlan(targetPlan.getWorkoutPlanID(), name,
                 targetPlan.getUserOwnerID(), checkedExercises, targetPlan.isWorkoutCompleted(), false,
                 targetPlan.getCopiedFromUserID());
 
@@ -80,7 +80,7 @@ public class EditPlanInteractor implements EditPlanInputBoundary {
 
     @Override
     public void deletePlan(UUID planId) {
-        WorkoutPlan targetPlan = findEditablePlan(planId);
+        final WorkoutPlan targetPlan = findEditablePlan(planId);
         if (targetPlan == null) {
             return;
         }
@@ -94,7 +94,7 @@ public class EditPlanInteractor implements EditPlanInputBoundary {
      Returns the plan if the logged-in user can change it. Otherwise reports why and returns null.
      */
     private WorkoutPlan findEditablePlan(UUID planId) {
-        User currentUser = currentUserReader.currentUser().orElse(null);
+        final User currentUser = currentUserReader.currentUser().orElse(null);
         if (currentUser == null) {
             presenter.prepareFailView("No user is logged in.");
             return null;
@@ -104,7 +104,7 @@ public class EditPlanInteractor implements EditPlanInputBoundary {
             return null;
         }
 
-        WorkoutPlan targetPlan = dataAccess.getById(planId);
+        final WorkoutPlan targetPlan = dataAccess.getById(planId);
         if (targetPlan == null) {
             presenter.prepareFailView("Plan not found.");
             return null;
@@ -121,9 +121,9 @@ public class EditPlanInteractor implements EditPlanInputBoundary {
     }
 
     private EditPlanOutputData toOutputData(WorkoutPlan workoutPlan) {
-        ArrayList<EditPlanOutputData.ExerciseEntry> exerciseEntries = new ArrayList<>();
+        final ArrayList<EditPlanOutputData.ExerciseEntry> exerciseEntries = new ArrayList<>();
         for (PlannedExercise plannedExercise : workoutPlan.getExercises()) {
-            Exercise exercise = plannedExercise.getExercise();
+            final Exercise exercise = plannedExercise.getExercise();
             exerciseEntries.add(new EditPlanOutputData.ExerciseEntry(exercise.getExerciseID(), exercise.getName(),
                     plannedExercise.getTargetSets(), plannedExercise.getTargetReps(),
                     plannedExercise.getTargetWeight()));

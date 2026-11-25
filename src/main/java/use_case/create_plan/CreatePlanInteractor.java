@@ -30,17 +30,17 @@ public class CreatePlanInteractor implements CreatePlanInputBoundary {
 
     @Override
     public void execute(CreatePlanInputData inputData) {
-        User currentUser = currentUserReader.currentUser().orElse(null);
+        final User currentUser = currentUserReader.currentUser().orElse(null);
         if (currentUser == null) {
             presenter.prepareFailView("No user is logged in.");
             return;
         }
 
-        UUID ownerId = currentUser.getUserID();
-        String name = inputData.name();
-        List<CreatePlanInputData.ExerciseEntry> exercises = inputData.exercises();
+        final UUID ownerId = currentUser.getUserID();
+        final String name = inputData.name();
+        final List<CreatePlanInputData.ExerciseEntry> exercises = inputData.exercises();
 
-        String inputCheck = PlanInputValidator.checkInput(name, exercises);
+        final String inputCheck = PlanInputValidator.checkInput(name, exercises);
         if (!inputCheck.isBlank()) {
             presenter.prepareFailView(inputCheck);
             return;
@@ -51,11 +51,11 @@ public class CreatePlanInteractor implements CreatePlanInputBoundary {
             return;
         }
 
-        ArrayList<PlannedExercise> templateExercises = new ArrayList<>();
+        final ArrayList<PlannedExercise> templateExercises = new ArrayList<>();
         int row = 0;
         for (CreatePlanInputData.ExerciseEntry entry : exercises) {
             row += 1;
-            Exercise exercise = exerciseLookup.findById(entry.exerciseId());
+            final Exercise exercise = exerciseLookup.findById(entry.exerciseId());
             if (exercise == null) {
                 presenter.prepareFailView("Row " + row + ": exercise not found.");
                 return;
@@ -63,12 +63,12 @@ public class CreatePlanInteractor implements CreatePlanInputBoundary {
             templateExercises.add(new PlannedExercise(exercise, entry.sets(), entry.reps(), entry.weight()));
         }
 
-        WorkoutPlan newPlan = new WorkoutPlan(UUID.randomUUID(), name, ownerId,
+        final WorkoutPlan newPlan = new WorkoutPlan(UUID.randomUUID(), name, ownerId,
                 templateExercises, false, false, null);
 
         planDataAccess.save(newPlan);
 
-        CreatePlanOutputData outputData = new CreatePlanOutputData(newPlan.getWorkoutPlanID(), newPlan.getName(),
+        final CreatePlanOutputData outputData = new CreatePlanOutputData(newPlan.getWorkoutPlanID(), newPlan.getName(),
                 newPlan.getExercises().size());
         presenter.prepareSuccessView(outputData);
     }

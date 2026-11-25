@@ -15,7 +15,7 @@ public class CreatePlanController {
 
     public void execute(String name, List<String> exerciseIds, List<Integer> sets, List<Integer> reps,
                         List<Double> weights) {
-        ArrayList<CreatePlanInputData.ExerciseEntry> exerciseEntries = new ArrayList<>();
+        final ArrayList<CreatePlanInputData.ExerciseEntry> exerciseEntries = new ArrayList<>();
         String trimmedName = null;
         int listSize = 0;
 
@@ -32,7 +32,7 @@ public class CreatePlanController {
                     weights.get(i)));
         }
 
-        CreatePlanInputData inputData = new CreatePlanInputData(trimmedName, exerciseEntries);
+        final CreatePlanInputData inputData = new CreatePlanInputData(trimmedName, exerciseEntries);
 
         interactor.execute(inputData);
     }

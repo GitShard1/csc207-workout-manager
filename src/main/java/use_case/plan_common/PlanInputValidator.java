@@ -12,7 +12,7 @@ public final class PlanInputValidator {
      Checks the plan name and every exercise row, in order. Returns the first problem, or empty string when correct.
      */
     public static String checkInput(String name, List<? extends PlanRow> rows) {
-        String nameCheck = checkName(name);
+        final String nameCheck = checkName(name);
         if (!nameCheck.isBlank()) {
             return nameCheck;
         }
@@ -24,7 +24,7 @@ public final class PlanInputValidator {
 
         for (PlanRow planRow : rows) {
             row += 1;
-            String rowCheck = checkRow(row, planRow);
+            final String rowCheck = checkRow(row, planRow);
             if (!rowCheck.isBlank()) {
                 return rowCheck;
             }

@@ -1,5 +1,7 @@
 package interface_adapter.edit_plan;
 
+import interface_adapter.ViewManagerModel;
+import interface_adapter.home.HomeViewModel;
 import interface_adapter.plan_editor.PlanEditorState;
 import interface_adapter.plan_editor.PlanEditorViewModel;
 import use_case.edit_plan.EditPlanOutputBoundary;
@@ -9,36 +11,33 @@ import java.util.ArrayList;
 
 public class EditPlanPresenter implements EditPlanOutputBoundary {
     private final PlanEditorViewModel viewModel;
+    private final ViewManagerModel viewManagerModel;
 
-    public EditPlanPresenter(PlanEditorViewModel viewModel) {
+    public EditPlanPresenter(PlanEditorViewModel viewModel, ViewManagerModel viewManagerModel) {
         this.viewModel = viewModel;
+        this.viewManagerModel = viewManagerModel;
     }
 
     @Override
     public void prepareSuccessView(EditPlanOutputData outputData) {
-        ArrayList<PlanEditorState.ExerciseRow> exerciseRows = new ArrayList<>();
+        final ArrayList<PlanEditorState.ExerciseRow> exerciseRows = new ArrayList<>();
         for (EditPlanOutputData.ExerciseEntry entry : outputData.exercises()) {
             exerciseRows.add(new PlanEditorState.ExerciseRow(entry.exerciseId(), entry.exerciseName(), entry.sets(),
                     entry.reps(), entry.weight()));
         }
 
-        PlanEditorState state = new PlanEditorState();
-        state.setPlanId(outputData.planId());
-        state.setName(outputData.name());
-        state.setExercises(exerciseRows);
-        viewModel.setState(state);
-        viewModel.firePropertyChanged();
+        viewModel.setState(new PlanEditorState(outputData.planId(), outputData.name(), exerciseRows, null));
+        viewManagerModel.setState(PlanEditorViewModel.VIEW_NAME);
     }
 
     @Override
     public void prepareDeleteSuccessView() {
-        viewModel.setState(new PlanEditorState());
-        viewModel.firePropertyChanged();
+        viewModel.setState(PlanEditorState.empty());
+        viewManagerModel.setState(HomeViewModel.VIEW_NAME);
     }
 
     @Override
     public void prepareFailView(String errorMessage) {
-        viewModel.getState().setError(errorMessage);
-        viewModel.firePropertyChanged();
+        viewModel.showError(errorMessage);
     }
 }
