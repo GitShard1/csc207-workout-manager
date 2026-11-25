@@ -138,7 +138,18 @@ The user starts a blank or preset plan, names it, adds exercises with target set
 
 ### Edit a Workout Plan
 
-The user changes a plan's name, exercises or targets, or deletes the plan. Workouts already logged from it are kept unchanged.
+**Actor:** Signed-in user. **Precondition:** Signed in, with at least one plan of their own. **Trigger:** The user opens one of their plans to change it.
+
+**Success outcome:** The plan's changes are saved, and workouts already logged from it are unchanged.
+
+1. The system shows the plan's name and its exercises with their target sets, reps and weight.
+2. The user renames the plan, adds, removes or reorders exercises, or changes their targets.
+3. The system checks the plan, saves the changes and shows the updated plan.
+
+**Extensions:**
+- At step 1, if the plan can't be found, is a starter plan, or belongs to another user, the system says it can't be edited and nothing changes.
+- At step 2, the user can delete the whole plan instead. After the user confirms, the system removes it from their plans and keeps the workouts already logged from it.
+- At step 3, if the plan has no name, a name over 50 characters, the same name as another of the user's plans, no exercises, or an exercise with fewer than 1 set or rep or a negative weight, the system explains what is wrong and keeps what the user typed.
 
 ### Log a Workout
 
@@ -170,7 +181,7 @@ The user opens a friend's profile and copies one of their plans. The system save
 | Demeng | Register an Account, Log In, Log Out |
 | Eric | Use Case |
 | David | Find an Exercise |
-| Amgalan | Use Case |
+| Amgalan | Create a Workout Plan, Edit a Workout Plan |
 
 ---
 
