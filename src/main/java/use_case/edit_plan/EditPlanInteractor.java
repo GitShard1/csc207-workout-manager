@@ -4,7 +4,7 @@ import entity.Exercise;
 import entity.PlannedExercise;
 import entity.User;
 import entity.WorkoutPlan;
-import use_case.account.CurrentUserReader;
+import use_case.account.CurrentUserDataAccessInterface;
 import use_case.plan_common.ExerciseLookupDataAccessInterface;
 import use_case.plan_common.PlanInputValidator;
 
@@ -15,11 +15,11 @@ import java.util.UUID;
 public class EditPlanInteractor implements EditPlanInputBoundary {
     private final EditPlanDataAccessInterface dataAccess;
     private final ExerciseLookupDataAccessInterface exerciseLookup;
-    private final CurrentUserReader currentUserReader;
+    private final CurrentUserDataAccessInterface currentUserReader;
     private final EditPlanOutputBoundary presenter;
 
     public EditPlanInteractor(EditPlanDataAccessInterface dataAccess, ExerciseLookupDataAccessInterface exerciseLookup,
-                              CurrentUserReader currentUserReader, EditPlanOutputBoundary presenter) {
+                              CurrentUserDataAccessInterface currentUserReader, EditPlanOutputBoundary presenter) {
         this.dataAccess = dataAccess;
         this.exerciseLookup = exerciseLookup;
         this.currentUserReader = currentUserReader;
