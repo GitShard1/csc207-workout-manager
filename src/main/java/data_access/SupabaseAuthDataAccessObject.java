@@ -15,6 +15,7 @@ import java.util.Objects;
 import java.util.UUID;
 
 import static data_access.SupabaseJson.id;
+import static data_access.SupabaseJson.isPasswordRejected;
 import static data_access.SupabaseJson.object;
 import static data_access.SupabaseJson.parse;
 import static data_access.SupabaseJson.string;
@@ -72,9 +73,11 @@ public final class SupabaseAuthDataAccessObject
         if (status == 408 || status >= 500) {
             return SignUpDataAccessInterface.Failure.SIGNUP_UNCERTAIN;
         }
+        if (isPasswordRejected(code)) {
+            return SignUpDataAccessInterface.Failure.PASSWORD_REJECTED;
+        }
         return switch (code) {
             case "email_address_invalid" -> SignUpDataAccessInterface.Failure.INVALID_EMAIL;
-            case "weak_password" -> SignUpDataAccessInterface.Failure.PASSWORD_REJECTED;
             case "user_already_exists", "email_exists", "validation_failed" ->
                     SignUpDataAccessInterface.Failure.ACCOUNT_UNAVAILABLE;
             case null, default -> SignUpDataAccessInterface.Failure.RETRYABLE_FAILURE;

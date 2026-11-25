@@ -1,0 +1,112 @@
+package data_access;
+
+import com.google.gson.JsonObject;
+import entity.User;
+import use_case.account.AuthSession;
+import use_case.change_password.ChangePasswordUserDataAccessInterface;
+import use_case.login.SignInDataAccessInterface;
+
+import java.io.IOException;
+import java.net.http.HttpResponse;
+import java.util.Optional;
+
+/**
+ * Change Password (#22) using Supabase Auth.
+ * Supabase doesn't check the old password itself, so we sign in again with it first, then set the new one.
+ */
+public class SupabaseChangePasswordDataAccessObject implements ChangePasswordUserDataAccessInterface {
+    private final SupabaseClient client;
+    private final SignInDataAccessInterface signInDataAccessObject;
+    private final InMemorySessionStore sessionStore;
+
+    public SupabaseChangePasswordDataAccessObject(SupabaseClient client,
+                                                  SignInDataAccessInterface signInDataAccessObject,
+                                                  InMemorySessionStore sessionStore) {
+        this.client = client;
+        this.signInDataAccessObject = signInDataAccessObject;
+        this.sessionStore = sessionStore;
+    }
+
+    @Override
+    public Result changePassword(String currentPassword, String newPassword) {
+        Optional<String> accessToken = sessionStore.accessToken();
+        if (accessToken.isEmpty()) {
+            return Result.UNAVAILABLE;
+        }
+
+        try {
+            // Step 1: find the email, since signing in needs it and User doesn't store it
+            String email = findEmail(accessToken.get());
+            if (email == null) {
+                return Result.UNAVAILABLE;
+            }
+
+            // Step 2: check the current password with the same sign in that Log In uses
+            SignInDataAccessInterface.Result signInResult = signInDataAccessObject.signIn(email, currentPassword);
+            if (signInResult == SignInDataAccessInterface.Failure.BAD_CREDENTIALS) {
+                return Result.WRONG_CURRENT_PASSWORD;
+            }
+
+            // Step 3: set the new password with the fresh session from step 2
+            if (signInResult instanceof SignInDataAccessInterface.SignedIn signedIn) {
+                Result result = setPassword(signedIn.session().accessToken(), newPassword);
+
+                // Keep the fresh session, since Supabase may end the old one after a password change
+                if (result == Result.CHANGED) {
+                    keepSession(signedIn.session());
+                }
+
+                return result;
+            }
+
+            return Result.UNAVAILABLE;
+
+        } catch (IOException e) {
+            return Result.UNAVAILABLE;
+
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return Result.UNAVAILABLE;
+        }
+    }
+
+    /** Swaps the stored session for the new one, keeping the same signed-in user. */
+    private void keepSession(AuthSession newSession) {
+        Optional<User> user = sessionStore.currentUser();
+        if (user.isPresent()) {
+            sessionStore.start(newSession, user.get());
+        }
+    }
+
+    /** Asks Supabase for the signed-in user's email. Returns null if it can't. */
+    private String findEmail(String accessToken) throws IOException, InterruptedException {
+        HttpResponse<String> response = client.get("/auth/v1/user", accessToken);
+        if (response.statusCode() != 200) {
+            return null;
+        }
+
+        JsonObject user = SupabaseJson.object(SupabaseJson.parse(response.body()));
+        return SupabaseJson.string(user, "email");
+    }
+
+    /** Sends the new password to Supabase and turns its reply into a Result. */
+    private Result setPassword(String accessToken, String newPassword) throws IOException, InterruptedException {
+        JsonObject body = new JsonObject();
+        body.addProperty("password", newPassword);
+
+        HttpResponse<String> response = client.put("/auth/v1/user", body, accessToken);
+        if (response.statusCode() == 200) {
+            return Result.CHANGED;
+        }
+
+        JsonObject reply = SupabaseJson.object(SupabaseJson.parse(response.body()));
+        String errorCode = SupabaseJson.string(reply, "error_code");
+
+        if (SupabaseJson.isPasswordRejected(errorCode)) {
+            return Result.REJECTED;
+        }
+
+        // Anything else, e.g. "reauthentication_needed" if Secure password change is on in the Supabase project
+        return Result.UNAVAILABLE;
+    }
+}

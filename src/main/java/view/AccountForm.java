@@ -153,9 +153,14 @@ abstract class AccountForm extends JPanel {
         });
     }
 
+    /** Reads a password without clearing the field, so the user can fix a typo after an error. */
+    protected static String readPassword(JPasswordField field) {
+        return new String(field.getPassword());
+    }
+
     /** Reads a password and clears the field, so it is never left on screen after a submission. */
     protected static String takePassword(JPasswordField field) {
-        final String password = new String(field.getPassword());
+        final String password = readPassword(field);
         field.setText("");
         return password;
     }
