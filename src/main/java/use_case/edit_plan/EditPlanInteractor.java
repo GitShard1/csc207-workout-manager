@@ -27,19 +27,22 @@ public class EditPlanInteractor implements EditPlanInputBoundary {
     }
 
     @Override
-    public void execute(EditPlanInputData inputData) {
-        User currentUser = currentUserReader.currentUser().orElse(null);
-        if (currentUser == null) {
-            presenter.prepareFailView("No user is logged in.");
+    public void loadPlan(UUID planId) {
+        WorkoutPlan targetPlan = findEditablePlan(planId);
+        if (targetPlan == null) {
             return;
         }
 
-        UUID planId = inputData.planId();
+        presenter.prepareSuccessView(toOutputData(targetPlan));
+    }
+
+    @Override
+    public void execute(EditPlanInputData inputData) {
         String name = inputData.name();
         List<EditPlanInputData.ExerciseEntry> exercises = inputData.exercises();
 
-        if (planId == null) {
-            presenter.prepareFailView("No plan selected.");
+        WorkoutPlan targetPlan = findEditablePlan(inputData.planId());
+        if (targetPlan == null) {
             return;
         }
 
@@ -48,22 +51,8 @@ public class EditPlanInteractor implements EditPlanInputBoundary {
             presenter.prepareFailView(inputCheck);
             return;
         }
-
-        WorkoutPlan targetPlan = dataAccess.getById(planId);
-        if (targetPlan == null) {
-            presenter.prepareFailView("Plan not found.");
-            return;
-        }
-        else if (targetPlan.isPreset()) {
-            presenter.prepareFailView("Starter plans can't be edited.");
-            return;
-        }
-        else if (!currentUser.getUserID().equals(targetPlan.getUserOwnerID())) {
-            presenter.prepareFailView("You can only edit your own plans.");
-            return;
-        }
         else if (!name.equalsIgnoreCase(targetPlan.getName())
-                && dataAccess.existsByName(currentUser.getUserID(), name)) {
+                && dataAccess.existsByName(targetPlan.getUserOwnerID(), name)) {
             presenter.prepareFailView("You already have a plan called \"" + name + "\".");
             return;
         }
@@ -80,13 +69,65 @@ public class EditPlanInteractor implements EditPlanInputBoundary {
             checkedExercises.add(new PlannedExercise(exercise, entry.sets(), entry.reps(), entry.weight()));
         }
 
-        WorkoutPlan editedWorkoutPlan = new WorkoutPlan(targetPlan.getWorkoutPlanID(), name, currentUser.getUserID(),
-                checkedExercises, targetPlan.isWorkoutCompleted(), false, targetPlan.getCopiedFromUserID());
+        WorkoutPlan editedWorkoutPlan = new WorkoutPlan(targetPlan.getWorkoutPlanID(), name,
+                targetPlan.getUserOwnerID(), checkedExercises, targetPlan.isWorkoutCompleted(), false,
+                targetPlan.getCopiedFromUserID());
 
         dataAccess.update(editedWorkoutPlan);
 
-        EditPlanOutputData outputData = new EditPlanOutputData(editedWorkoutPlan.getWorkoutPlanID(),
-                editedWorkoutPlan.getName(), editedWorkoutPlan.getExercises().size());
-        presenter.prepareSuccessView(outputData);
+        presenter.prepareSuccessView(toOutputData(editedWorkoutPlan));
+    }
+
+    @Override
+    public void deletePlan(UUID planId) {
+        WorkoutPlan targetPlan = findEditablePlan(planId);
+        if (targetPlan == null) {
+            return;
+        }
+
+        dataAccess.delete(targetPlan.getWorkoutPlanID());
+
+        presenter.prepareDeleteSuccessView();
+    }
+
+    /**
+     Returns the plan if the logged-in user can change it. Otherwise reports why and returns null.
+     */
+    private WorkoutPlan findEditablePlan(UUID planId) {
+        User currentUser = currentUserReader.currentUser().orElse(null);
+        if (currentUser == null) {
+            presenter.prepareFailView("No user is logged in.");
+            return null;
+        }
+        else if (planId == null) {
+            presenter.prepareFailView("No plan selected.");
+            return null;
+        }
+
+        WorkoutPlan targetPlan = dataAccess.getById(planId);
+        if (targetPlan == null) {
+            presenter.prepareFailView("Plan not found.");
+            return null;
+        }
+        else if (targetPlan.isPreset()) {
+            presenter.prepareFailView("Starter plans can't be edited.");
+            return null;
+        }
+        else if (!currentUser.getUserID().equals(targetPlan.getUserOwnerID())) {
+            presenter.prepareFailView("You can only edit your own plans.");
+            return null;
+        }
+        return targetPlan;
+    }
+
+    private EditPlanOutputData toOutputData(WorkoutPlan workoutPlan) {
+        ArrayList<EditPlanOutputData.ExerciseEntry> exerciseEntries = new ArrayList<>();
+        for (PlannedExercise plannedExercise : workoutPlan.getExercises()) {
+            Exercise exercise = plannedExercise.getExercise();
+            exerciseEntries.add(new EditPlanOutputData.ExerciseEntry(exercise.getExerciseID(), exercise.getName(),
+                    plannedExercise.getTargetSets(), plannedExercise.getTargetReps(),
+                    plannedExercise.getTargetWeight()));
+        }
+        return new EditPlanOutputData(workoutPlan.getWorkoutPlanID(), workoutPlan.getName(), exerciseEntries);
     }
 }

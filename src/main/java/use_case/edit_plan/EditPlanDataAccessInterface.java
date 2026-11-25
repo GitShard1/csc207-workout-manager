@@ -13,4 +13,7 @@ public interface EditPlanDataAccessInterface {
 
     /** Replaces the stored plan with the same ID. */
     void update(WorkoutPlan workoutPlan);
+
+    /** Removes the plan with this ID. Workouts already logged from it are not changed. */
+    void delete(UUID planId);
 }
