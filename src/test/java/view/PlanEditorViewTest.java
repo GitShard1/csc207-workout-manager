@@ -58,6 +58,8 @@ class PlanEditorViewTest {
 
     private volatile CreatePlanInputData created;
     private boolean deleteConfirmed;
+    private boolean discardConfirmed;
+    private int discardAsked;
     private PlanEditorView view;
 
     @Test
@@ -221,6 +223,57 @@ class PlanEditorViewTest {
         assertEquals(HomeViewModel.VIEW_NAME, viewManagerModel.getState());
     }
 
+    @Test
+    void cancelBlankNewPlanDoesNotAskTest() throws Exception {
+        build();
+        viewManagerModel.setState(PlanEditorViewModel.VIEW_NAME);
+        onEdt(() -> button(view, "Cancel").doClick(0));
+
+        assertEquals(0, discardAsked);
+        assertEquals(HomeViewModel.VIEW_NAME, viewManagerModel.getState());
+    }
+
+    @Test
+    void cancelTypedNewPlanAsksFirstTest() throws Exception {
+        build();
+        discardConfirmed = false;
+        viewManagerModel.setState(PlanEditorViewModel.VIEW_NAME);
+        onEdt(() -> {
+            field(view, "Plan name").setText("Leg Day");
+            button(view, "Cancel").doClick(0);
+        });
+
+        assertEquals(1, discardAsked);
+        assertEquals(PlanEditorViewModel.VIEW_NAME, viewManagerModel.getState());
+        onEdt(() -> assertEquals("Leg Day", field(view, "Plan name").getText()));
+    }
+
+    @Test
+    void confirmedDiscardClearsAndGoesHomeTest() throws Exception {
+        build();
+        discardConfirmed = true;
+        viewManagerModel.setState(PlanEditorViewModel.VIEW_NAME);
+        onEdt(() -> {
+            field(view, "Plan name").setText("Leg Day");
+            button(view, "Cancel").doClick(0);
+        });
+
+        assertEquals(HomeViewModel.VIEW_NAME, viewManagerModel.getState());
+        onEdt(() -> assertEquals("", field(view, "Plan name").getText()));
+    }
+
+    @Test
+    void cancelWhileEditingNeverAsksTest() throws Exception {
+        buildAndLoad();
+        onEdt(() -> {
+            field(view, "Plan name").setText("Something else");
+            button(view, "Cancel").doClick(0);
+        });
+
+        assertEquals(0, discardAsked);
+        assertEquals(HomeViewModel.VIEW_NAME, viewManagerModel.getState());
+    }
+
     private void build() throws Exception {
         CreatePlanController createController = new CreatePlanController(request -> {
             created = request;
@@ -231,6 +284,12 @@ class PlanEditorViewTest {
             @Override
             boolean confirmDelete(String planName) {
                 return deleteConfirmed;
+            }
+
+            @Override
+            boolean confirmDiscard() {
+                discardAsked++;
+                return discardConfirmed;
             }
         });
     }

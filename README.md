@@ -134,7 +134,19 @@ As a user, I want to change my password and other account settings so that my ac
 
 ### Create a Workout Plan
 
-The user starts a blank or preset plan, names it, adds exercises with target sets and reps, and saves it to their list of plans.
+**Actor:** Signed-in user. **Precondition:** Signed in. **Trigger:** The user asks to create a new workout plan.
+
+**Success outcome:** A new plan with a name and at least one exercise, each with target sets and reps, is saved and appears in the user's list of plans.
+
+1. The user starts a blank plan and names it.
+2. The user adds exercises from the exercise library, adjusts their target sets, reps and, optionally, weight, and reorders or removes them as needed.
+3. The system checks the plan, saves it and shows it in the user's list of plans.
+
+**Extensions:**
+- At step 1, the user can start from a starter plan instead. The system gives the user their own copy of it with its exercises already filled in.
+- At step 2, the user can abandon the plan. If anything was entered, the system asks the user to confirm discarding it, and no plan is saved.
+- At step 3, if the plan has no name, a name over 50 characters, the same name as another of the user's plans, no exercises, or an exercise with fewer than 1 set or rep or a negative weight, the system explains what is wrong and keeps what the user typed.
+- At step 3, if the plan can't be saved, the system says so and keeps the plan open, and the user can try again.
 
 ### Edit a Workout Plan
 

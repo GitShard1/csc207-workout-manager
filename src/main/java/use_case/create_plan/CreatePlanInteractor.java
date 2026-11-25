@@ -7,6 +7,7 @@ import entity.WorkoutPlan;
 import use_case.account.CurrentUserDataAccessInterface;
 import use_case.plan_common.ExerciseLookupDataAccessInterface;
 import use_case.plan_common.PlanInputValidator;
+import use_case.plan_common.PlanStorageUnavailableException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -66,7 +67,13 @@ public class CreatePlanInteractor implements CreatePlanInputBoundary {
         final WorkoutPlan newPlan = new WorkoutPlan(UUID.randomUUID(), name, ownerId,
                 templateExercises, false, false, null);
 
-        planDataAccess.save(newPlan);
+        try {
+            planDataAccess.save(newPlan);
+        }
+        catch (PlanStorageUnavailableException exception) {
+            presenter.prepareFailView("Your plan wasn't saved. Please try again.");
+            return;
+        }
 
         final CreatePlanOutputData outputData = new CreatePlanOutputData(newPlan.getWorkoutPlanID(), newPlan.getName(),
                 newPlan.getExercises().size());

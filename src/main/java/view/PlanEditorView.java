@@ -195,7 +195,7 @@ public class PlanEditorView extends JPanel {
                 run("Deleting plan...", () -> editPlanController.deletePlan(planId));
             }
         });
-        cancelButton.addActionListener(event -> viewManagerModel.setState(HomeViewModel.VIEW_NAME));
+        cancelButton.addActionListener(event -> cancel());
     }
 
     private void savePlan() {
@@ -234,10 +234,29 @@ public class PlanEditorView extends JPanel {
         return value;
     }
 
+    private void cancel() {
+        final boolean typedSomething = !nameField.getText().isBlank() || exerciseTableModel.getRowCount() > 0;
+        if (viewModel.getState().isNewPlan() && typedSomething) {
+            if (!confirmDiscard()) {
+                return;
+            }
+            nameField.setText("");
+            exerciseTableModel.setRowCount(0);
+            renumberRows();
+            status.setText(" ");
+        }
+        viewManagerModel.setState(HomeViewModel.VIEW_NAME);
+    }
+
     boolean confirmDelete(String planName) {
         return JOptionPane.showConfirmDialog(this,
                 "Delete \"" + planName + "\"? Workouts you already logged from it are kept.",
                 "Delete plan", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE) == JOptionPane.YES_OPTION;
+    }
+
+    boolean confirmDiscard() {
+        return JOptionPane.showConfirmDialog(this, "Discard this plan? It hasn't been saved.", "Discard plan",
+                JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE) == JOptionPane.YES_OPTION;
     }
 
     private void render(PlanEditorState state) {
