@@ -43,10 +43,22 @@ class SearchExercisesInteractorTest {
         SearchExercisesOutputData.ExerciseResult result = presenter.successData.results().get(0);
         assertEquals("0025", result.exerciseID());
         assertEquals("Barbell Bench Press", result.name());
-        assertEquals("CHEST", result.bodyPart());
+        assertEquals(BodyPart.CHEST, result.bodyPart());
         assertEquals(List.of("Triceps", "Shoulders"), result.secondaryMuscles());
         assertEquals("compound", result.mechanic());
         assertEquals(new ExerciseSearchQuery("press", BodyPart.CHEST, "barbell"), library.getReceivedQueries().get(0));
+    }
+
+    @Test
+    void libraryReceivesTheTrimmedLowerCaseQuery() {
+        FakeExerciseSearch library = FakeExerciseSearch.returning(List.of());
+
+        new SearchExercisesInteractor(library, presenter)
+                .execute(new SearchExercisesInputData("  Bench Press ", null, "   "));
+
+        ExerciseSearchQuery sent = library.getReceivedQueries().get(0);
+        assertEquals("bench press", sent.name());
+        assertNull(sent.equipment());
     }
 
     @Test

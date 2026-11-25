@@ -2,9 +2,9 @@ package data_access;
 
 import entity.User;
 import use_case.account.AuthSession;
-import use_case.account.CurrentUserReader;
-import use_case.account.SessionStarter;
-import use_case.logout.LogOutSessionGateway;
+import use_case.account.CurrentUserDataAccessInterface;
+import use_case.account.StartSessionDataAccessInterface;
+import use_case.logout.LogOutSessionDataAccessInterface;
 
 import java.util.Optional;
 
@@ -12,7 +12,8 @@ import java.util.Optional;
  * Holds the signed-in user for the lifetime of the app. Other Supabase DAOs read {@link #accessToken()} so their
  * requests run as the signed-in user, which lets row-level security apply.
  */
-public final class InMemorySessionStore implements SessionStarter, LogOutSessionGateway, CurrentUserReader {
+public final class InMemorySessionStore
+        implements StartSessionDataAccessInterface, LogOutSessionDataAccessInterface, CurrentUserDataAccessInterface {
     private AuthSession session;
     private User user;
 

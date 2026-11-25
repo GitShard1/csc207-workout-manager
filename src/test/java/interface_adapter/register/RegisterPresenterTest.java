@@ -8,7 +8,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import use_case.account.AccountProfile;
-import use_case.register.RegisterResponse;
+import use_case.register.RegisterFailure;
+import use_case.register.RegisterOutputData;
 
 import java.util.UUID;
 
@@ -22,7 +23,7 @@ class RegisterPresenterTest {
 
     @Test
     void successShowsTheNewProfileOnHome() {
-        presenter.present(new RegisterResponse.Success(new AccountProfile(UUID.randomUUID(), "sam_1", "Sam")));
+        presenter.prepareSuccessView(new RegisterOutputData(new AccountProfile(UUID.randomUUID(), "sam_1", "Sam")));
 
         assertEquals(new HomeState("Signed in as Sam", "@sam_1"), home.getState());
         assertEquals(RegisterState.empty(), register.getState());
@@ -37,8 +38,8 @@ class RegisterPresenterTest {
         "ACCOUNT_CREATED_PROFILE_UNAVAILABLE | FORM | Your account was created, but we couldn't load your profile. "
                 + "Try logging in."
     })
-    void failureIsShownNextToTheFieldItConcerns(RegisterResponse.Failure failure, Field field, String message) {
-        presenter.present(failure);
+    void failureIsShownNextToTheFieldItConcerns(RegisterFailure failure, Field field, String message) {
+        presenter.prepareFailView(failure);
 
         assertEquals(new RegisterState(field, message), register.getState());
         assertEquals(RegisterViewModel.VIEW_NAME, viewManager.getState());

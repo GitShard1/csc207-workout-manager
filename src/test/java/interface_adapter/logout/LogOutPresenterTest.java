@@ -20,7 +20,7 @@ class LogOutPresenterTest {
         final HomeViewModel home = new HomeViewModel();
         home.showSignedIn(new AccountProfile(UUID.randomUUID(), "sam_1", "Sam"));
 
-        new LogOutPresenter(viewManager, logIn, home).signedOut();
+        new LogOutPresenter(viewManager, logIn, home).prepareSuccessView();
 
         assertEquals(HomeState.empty(), home.getState());
         assertEquals(new LogInState(null, "You’re signed out."), logIn.getState());

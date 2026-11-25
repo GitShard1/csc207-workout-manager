@@ -57,6 +57,10 @@ As a user, I want to be able to respond to friend requests so I can choose wheth
 
 As a user, I want to copy my friend's workout plans so I can do the same exercises as my friends.
 
+### User Story 10
+
+As a user, I want to change my password and other account settings so that my account stays up to date.
+
 ---
 
 ## Use Cases
@@ -99,9 +103,34 @@ As a user, I want to copy my friend's workout plans so I can do the same exercis
 
 **Extension:** At step 1, if the account service can't be reached, the user is still signed out on this computer.
 
+### Change Password
+
+**Actor:** Signed-in user. **Precondition:** Signed in. **Trigger:** The user opens Settings from Home.
+
+**Success outcome:** The account's password is the new one, and the user stays signed in.
+
+1. The user enters their current password, a new password, and the new password again.
+2. The system checks the passwords and the current password with the account service.
+3. The system saves the new password, confirms the change, and clears the fields.
+
+**Extensions:**
+- At step 2, if the current password is empty or wrong, the new password is under 8 characters, the two new passwords don't match, or the new password is the same as the current one, the system explains why and keeps what the user typed.
+- At step 3, if the account service rejects the new password or can't be reached, the password is unchanged and the user can try again.
+
 ### Find an Exercise
 
-The user browses the exercise library, filters by name, muscle group or equipment, and opens an exercise to see its description, muscles worked, equipment and picture.
+**Actor:** User. **Precondition:** Signed in. **Trigger:** The user opens the exercise library.
+
+**Success outcome:** The user sees the exercises that match their search and can read about any of them.
+
+1. The user types part of an exercise name, chooses a body part, chooses equipment, or any combination of these.
+2. The system shows every matching exercise with its body part, main and secondary muscles, equipment, and whether it is a compound or isolation movement.
+3. The user opens an exercise to see its step-by-step instructions and picture.
+
+**Extensions:**
+- At step 1, if the user searches without entering anything, the system asks for a name, body part or equipment.
+- At step 2, if nothing matches, the system says so and the user can change the search.
+- At step 2, if the exercise library can't be reached, the system says search is unavailable right now and the user can try again later.
 
 ### Create a Workout Plan
 
@@ -137,10 +166,10 @@ The user opens a friend's profile and copies one of their plans. The system save
 
 | Team Member | MVP Use Case |
 |-------------|--------------|
-| Jirat | Use Case |
+| Jirat | User Settings & Change Password & Dashboard |
 | Demeng | Register an Account, Log In, Log Out |
 | Eric | Use Case |
-| David | Use Case |
+| David | Find an Exercise |
 | Amgalan | Use Case |
 
 ---
@@ -162,10 +191,14 @@ Instance Attributes:
 - ExerciseID (String, from the WorkoutX API)
 - Name (String)
 - Description (String)
-- Main Muscle Group (MuscleGroup enum)
-- Muscles Worked (List of MuscleGroup)
+- Body Part (BodyPart enum: BACK, CARDIO, CHEST, LOWER_ARMS, LOWER_LEGS, NECK, SHOULDERS, UPPER_ARMS, UPPER_LEGS, WAIST)
+- Target (String, the main muscle worked)
+- Secondary Muscles (List of String)
 - Equipment (String)
-- Image URL (String, optional)
+- Mechanic (String, compound or isolation)
+- Instructions (ordered List of String)
+
+Rules: the ID and name can't be blank. Pictures are looked up by ID rather than stored, because WorkoutX image links need the API key.
 
 ### PlannedExercise
 Instance Attributes:
@@ -231,7 +264,7 @@ Instance Attributes:
 
 **Documentation:** [Link](https://workoutxapp.com/docs.html)
 
-**How it is used in the program:** Planned for looking up exercises, including their descriptions, muscles worked, equipment and pictures.
+**How it is used in the program:** Searches the exercise library by name, body part and equipment, and provides each exercise's muscles, equipment, instructions and picture. Search results are cached while the app runs, so repeating a search doesn't use another of the API key's requests. The team has called it successfully; saved responses are in `src/test/resources/workoutx/`.
 
 ---
 
@@ -265,6 +298,6 @@ You can also open `pom.xml` as a Maven project in your IDE and run `app.WorkoutM
 
 ### Using the signed-in user
 
-- Interactors that need the signed-in user depend on `use_case.account.CurrentUserReader`, which `InMemorySessionStore` implements.
+- Interactors that need the signed-in user depend on `use_case.account.CurrentUserDataAccessInterface`, which `InMemorySessionStore` implements.
 - Supabase DAOs send `InMemorySessionStore.accessToken()` as the bearer token so row-level security applies.
 - A new screen gets a view model extending `interface_adapter.ViewModel` and is registered with `ViewManager.addView`. Presenters open it by setting `ViewManagerModel`'s state to its view name.

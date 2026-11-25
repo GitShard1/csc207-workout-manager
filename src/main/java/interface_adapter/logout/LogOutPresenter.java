@@ -19,7 +19,7 @@ public final class LogOutPresenter implements LogOutOutputBoundary {
     }
 
     @Override
-    public void signedOut() {
+    public void prepareSuccessView() {
         home.setState(HomeState.empty());
         logIn.setState(new LogInState(null, "You’re signed out."));
         viewManager.setState(logIn.getViewName());

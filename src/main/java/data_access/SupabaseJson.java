@@ -33,6 +33,11 @@ final class SupabaseJson {
                 ? value.getAsString() : null;
     }
 
+    /** Supabase's error codes for a password it won't accept. Shared by sign up and change password. */
+    static boolean isPasswordRejected(String errorCode) {
+        return "weak_password".equals(errorCode) || "same_password".equals(errorCode);
+    }
+
     static UUID id(JsonObject object) {
         final String value = string(object, "id");
         try {

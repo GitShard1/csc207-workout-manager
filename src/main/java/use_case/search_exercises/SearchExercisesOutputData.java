@@ -2,8 +2,11 @@ package use_case.search_exercises;
 
 import java.util.List;
 
+import entity.BodyPart;
+
 /**
- * The exercises found, as plain data for the presenter, so outer layers never handle entities.
+ * The exercises found, as plain data for the presenter, so outer layers never handle {@code Exercise}
+ * entities.
  *
  * @param results the matches in the order the library returned them; empty if nothing matched
  */
@@ -23,14 +26,14 @@ public record SearchExercisesOutputData(List<ExerciseResult> results) {
      *
      * @param exerciseID       the library's ID, needed to look up its picture and animation
      * @param name             the display name
-     * @param bodyPart         the body part's name, such as "CHEST"
+     * @param bodyPart         the main body part it trains; the presenter decides how to show it
      * @param target           the main muscle it works
      * @param secondaryMuscles other muscles it works
      * @param equipment        the equipment needed
      * @param mechanic         "compound" or "isolation"
      * @param instructions     the steps to perform it, in order
      */
-    public record ExerciseResult(String exerciseID, String name, String bodyPart, String target,
+    public record ExerciseResult(String exerciseID, String name, BodyPart bodyPart, String target,
                                  List<String> secondaryMuscles, String equipment, String mechanic,
                                  List<String> instructions) {
     }

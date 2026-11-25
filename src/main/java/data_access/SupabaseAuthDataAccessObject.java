@@ -2,9 +2,9 @@ package data_access;
 
 import com.google.gson.JsonObject;
 import use_case.account.AuthSession;
-import use_case.login.SignInGateway;
-import use_case.logout.SessionRevocationGateway;
-import use_case.register.SignUpGateway;
+import use_case.login.SignInDataAccessInterface;
+import use_case.logout.SessionRevocationDataAccessInterface;
+import use_case.register.SignUpDataAccessInterface;
 
 import java.io.IOException;
 import java.net.ConnectException;
@@ -15,22 +15,24 @@ import java.util.Objects;
 import java.util.UUID;
 
 import static data_access.SupabaseJson.id;
+import static data_access.SupabaseJson.isPasswordRejected;
 import static data_access.SupabaseJson.object;
 import static data_access.SupabaseJson.parse;
 import static data_access.SupabaseJson.string;
 
 /** Translates Supabase Auth responses into the results the account use cases understand. */
-public final class SupabaseAuthGateway implements SignUpGateway, SignInGateway, SessionRevocationGateway {
-    private static final System.Logger LOGGER = System.getLogger(SupabaseAuthGateway.class.getName());
+public final class SupabaseAuthDataAccessObject
+        implements SignUpDataAccessInterface, SignInDataAccessInterface, SessionRevocationDataAccessInterface {
+    private static final System.Logger LOGGER = System.getLogger(SupabaseAuthDataAccessObject.class.getName());
 
     private final SupabaseClient client;
 
-    public SupabaseAuthGateway(SupabaseClient client) {
+    public SupabaseAuthDataAccessObject(SupabaseClient client) {
         this.client = Objects.requireNonNull(client);
     }
 
     @Override
-    public SignUpGateway.Result signUp(String email, String password, String username, String displayName) {
+    public SignUpDataAccessInterface.Result signUp(String email, String password, String username, String displayName) {
         final JsonObject body = credentials(email, password);
         final JsonObject profile = new JsonObject();
         profile.addProperty("username", username);
@@ -41,13 +43,13 @@ public final class SupabaseAuthGateway implements SignUpGateway, SignInGateway, 
         try {
             response = client.post("/auth/v1/signup", body, null);
         } catch (HttpConnectTimeoutException | ConnectException | UnknownHostException ignored) {
-            return SignUpGateway.Failure.RETRYABLE_FAILURE;
+            return SignUpDataAccessInterface.Failure.RETRYABLE_FAILURE;
         } catch (InterruptedException ignored) {
             Thread.currentThread().interrupt();
-            return SignUpGateway.Failure.SIGNUP_UNCERTAIN;
+            return SignUpDataAccessInterface.Failure.SIGNUP_UNCERTAIN;
         } catch (IOException ignored) {
             // The request may have reached Supabase before the connection failed.
-            return SignUpGateway.Failure.SIGNUP_UNCERTAIN;
+            return SignUpDataAccessInterface.Failure.SIGNUP_UNCERTAIN;
         }
 
         final JsonObject reply = object(parse(response.body()));
@@ -55,55 +57,57 @@ public final class SupabaseAuthGateway implements SignUpGateway, SignInGateway, 
             return signUpFailure(response.statusCode(), reply);
         }
         return switch (readSession(reply)) {
-            case Issued(AuthSession session) -> new SignUpGateway.SignedUp(session);
-            case NoSession.USER_WITHOUT_SESSION -> SignUpGateway.Failure.NO_USABLE_SESSION;
-            case NoSession.MALFORMED -> SignUpGateway.Failure.SIGNUP_UNCERTAIN;
+            case Issued(AuthSession session) -> new SignUpDataAccessInterface.SignedUp(session);
+            case NoSession.USER_WITHOUT_SESSION -> SignUpDataAccessInterface.Failure.NO_USABLE_SESSION;
+            case NoSession.MALFORMED -> SignUpDataAccessInterface.Failure.SIGNUP_UNCERTAIN;
         };
     }
 
-    private static SignUpGateway.Failure signUpFailure(int status, JsonObject reply) {
+    private static SignUpDataAccessInterface.Failure signUpFailure(int status, JsonObject reply) {
         final String code = string(reply, "error_code");
         // Supabase hides which database constraint failed when the profile trigger rejects the new user.
         if (status == 500 && "unexpected_failure".equals(code)
                 && "Database error saving new user".equals(string(reply, "msg"))) {
-            return SignUpGateway.Failure.PROFILE_REJECTED;
+            return SignUpDataAccessInterface.Failure.PROFILE_REJECTED;
         }
         if (status == 408 || status >= 500) {
-            return SignUpGateway.Failure.SIGNUP_UNCERTAIN;
+            return SignUpDataAccessInterface.Failure.SIGNUP_UNCERTAIN;
+        }
+        if (isPasswordRejected(code)) {
+            return SignUpDataAccessInterface.Failure.PASSWORD_REJECTED;
         }
         return switch (code) {
-            case "email_address_invalid" -> SignUpGateway.Failure.INVALID_EMAIL;
-            case "weak_password" -> SignUpGateway.Failure.PASSWORD_REJECTED;
+            case "email_address_invalid" -> SignUpDataAccessInterface.Failure.INVALID_EMAIL;
             case "user_already_exists", "email_exists", "validation_failed" ->
-                    SignUpGateway.Failure.ACCOUNT_UNAVAILABLE;
-            case null, default -> SignUpGateway.Failure.RETRYABLE_FAILURE;
+                    SignUpDataAccessInterface.Failure.ACCOUNT_UNAVAILABLE;
+            case null, default -> SignUpDataAccessInterface.Failure.RETRYABLE_FAILURE;
         };
     }
 
     @Override
-    public SignInGateway.Result signIn(String email, String password) {
+    public SignInDataAccessInterface.Result signIn(String email, String password) {
         final HttpResponse<String> response;
         try {
             response = client.post("/auth/v1/token?grant_type=password", credentials(email, password), null);
         } catch (InterruptedException ignored) {
             Thread.currentThread().interrupt();
-            return SignInGateway.Failure.RETRYABLE_FAILURE;
+            return SignInDataAccessInterface.Failure.RETRYABLE_FAILURE;
         } catch (IOException ignored) {
-            return SignInGateway.Failure.RETRYABLE_FAILURE;
+            return SignInDataAccessInterface.Failure.RETRYABLE_FAILURE;
         }
 
         final JsonObject reply = object(parse(response.body()));
         if (response.statusCode() != 200) {
             return switch (string(reply, "error_code")) {
-                case "invalid_credentials", "user_not_found" -> SignInGateway.Failure.BAD_CREDENTIALS;
-                case "email_not_confirmed" -> SignInGateway.Failure.NO_USABLE_SESSION;
-                case null, default -> SignInGateway.Failure.RETRYABLE_FAILURE;
+                case "invalid_credentials", "user_not_found" -> SignInDataAccessInterface.Failure.BAD_CREDENTIALS;
+                case "email_not_confirmed" -> SignInDataAccessInterface.Failure.NO_USABLE_SESSION;
+                case null, default -> SignInDataAccessInterface.Failure.RETRYABLE_FAILURE;
             };
         }
         return switch (readSession(reply)) {
-            case Issued(AuthSession session) -> new SignInGateway.SignedIn(session);
-            case NoSession.USER_WITHOUT_SESSION -> SignInGateway.Failure.NO_USABLE_SESSION;
-            case NoSession.MALFORMED -> SignInGateway.Failure.RETRYABLE_FAILURE;
+            case Issued(AuthSession session) -> new SignInDataAccessInterface.SignedIn(session);
+            case NoSession.USER_WITHOUT_SESSION -> SignInDataAccessInterface.Failure.NO_USABLE_SESSION;
+            case NoSession.MALFORMED -> SignInDataAccessInterface.Failure.RETRYABLE_FAILURE;
         };
     }
 

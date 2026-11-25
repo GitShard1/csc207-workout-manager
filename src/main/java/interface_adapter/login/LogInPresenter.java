@@ -2,8 +2,9 @@ package interface_adapter.login;
 
 import interface_adapter.ViewManagerModel;
 import interface_adapter.home.HomeViewModel;
+import use_case.login.LogInFailure;
 import use_case.login.LogInOutputBoundary;
-import use_case.login.LogInResponse;
+import use_case.login.LogInOutputData;
 
 public final class LogInPresenter implements LogInOutputBoundary {
     private final ViewManagerModel viewManager;
@@ -17,18 +18,18 @@ public final class LogInPresenter implements LogInOutputBoundary {
     }
 
     @Override
-    public void present(LogInResponse response) {
-        switch (response) {
-            case LogInResponse.Success(var profile) -> {
-                home.showSignedIn(profile);
-                logIn.setState(LogInState.empty());
-                viewManager.setState(home.getViewName());
-            }
-            case LogInResponse.Failure failure -> logIn.setState(new LogInState(message(failure), null));
-        }
+    public void prepareSuccessView(LogInOutputData outputData) {
+        home.showSignedIn(outputData.profile());
+        logIn.setState(LogInState.empty());
+        viewManager.setState(home.getViewName());
     }
 
-    private static String message(LogInResponse.Failure failure) {
+    @Override
+    public void prepareFailView(LogInFailure failure) {
+        logIn.setState(new LogInState(message(failure), null));
+    }
+
+    private static String message(LogInFailure failure) {
         return switch (failure) {
             case BAD_CREDENTIALS -> "Email or password is incorrect.";
             case NO_USABLE_SESSION -> "Confirm your email if prompted, then try logging in again.";
