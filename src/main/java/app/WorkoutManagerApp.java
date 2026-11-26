@@ -40,6 +40,7 @@ import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
+import java.util.List;
 
 /** Builds the Clean Architecture engine: creates every object and connects each one to its collaborators. */
 public final class WorkoutManagerApp {
@@ -96,16 +97,17 @@ public final class WorkoutManagerApp {
         views.addView(LogInViewModel.VIEW_NAME, logInView);
         views.addView(RegisterViewModel.VIEW_NAME, new RegisterView(registerViewModel, register, viewManagerModel));
 
-        // Sidebar buttons show in this order, Home is labelled Dashboard in the gui
-        views.addSignedInView(HomeViewModel.VIEW_NAME, "Dashboard", new HomeView(homeViewModel, logOut));
+        // Sidebar buttons show in this order, each labelled with its screen's TITLE
+        views.addSignedInView(HomeViewModel.VIEW_NAME, HomeViewModel.TITLE, new HomeView(homeViewModel, logOut));
 
         // Placeholders until the real plan and history views are made, then swap the view in here
-        views.addSignedInView("workout plans", "Workout Plans", new PlaceholderView("Workout Plans"));
-        views.addSignedInView("progress history", "Progress History", new PlaceholderView("Progress History"));
+        for (String title : List.of("Workout Plans", "Progress History")) {
+            views.addSignedInView(title, title, new PlaceholderView(title));
+        }
 
-        views.addSignedInView(FollowingViewModel.VIEW_NAME, "Following",
+        views.addSignedInView(FollowingViewModel.VIEW_NAME, FollowingViewModel.TITLE,
                 new FollowingView(followingViewModel, following, viewManagerModel));
-        views.addSignedInView(SettingsViewModel.VIEW_NAME, "Settings",
+        views.addSignedInView(SettingsViewModel.VIEW_NAME, SettingsViewModel.TITLE,
                 new SettingsView(settingsViewModel, changePassword, viewManagerModel));
 
         final JFrame frame = new JFrame("Workout Manager");

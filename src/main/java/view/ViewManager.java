@@ -5,8 +5,6 @@ import interface_adapter.ViewManagerModel;
 import javax.swing.JPanel;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
-import java.util.HashSet;
-import java.util.Set;
 
 /**
  * Shows whichever view the {@link ViewManagerModel} names. Each view is added under its view model's name.
@@ -21,7 +19,6 @@ public final class ViewManager extends JPanel {
     private final JPanel signedInContent = new JPanel(signedInCards);
     private final JPanel signedInSidePanel = new JPanel(new BorderLayout());
     private final SidebarPanel sidebar;
-    private final Set<String> signedInViewNames = new HashSet<>();
 
     public ViewManager(ViewManagerModel model) {
         setLayout(cards);
@@ -44,18 +41,18 @@ public final class ViewManager extends JPanel {
     /** Adds a signed-in view next to the sidebar, with a sidebar button using this label. */
     public void addSignedInView(String viewName, String sidebarLabel, JPanel view) {
         // Signed-in side panel only joins the cards with its first view, so log in (added first) still shows first
-        if (signedInViewNames.isEmpty()) {
+        if (signedInSidePanel.getParent() == null) {
             add(signedInSidePanel, SIGNED_IN);
         }
 
         view.setName(viewName);
         signedInContent.add(view, viewName);
         sidebar.addScreen(viewName, sidebarLabel);
-        signedInViewNames.add(viewName);
     }
 
     private void show(String viewName) {
-        if (signedInViewNames.contains(viewName)) {
+        // The sidebar's buttons are the one list of signed-in screens
+        if (sidebar.hasScreen(viewName)) {
             signedInCards.show(signedInContent, viewName);
             cards.show(this, SIGNED_IN);
         } else {

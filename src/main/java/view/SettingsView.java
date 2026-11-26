@@ -22,7 +22,7 @@ public final class SettingsView extends AccountForm {
 
     public SettingsView(SettingsViewModel settingsViewModel, ChangePasswordController changePasswordController,
                         ViewManagerModel viewManagerModel) {
-        super("Settings");
+        super(SettingsViewModel.TITLE);
         this.changePasswordController = changePasswordController;
         this.viewManagerModel = viewManagerModel;
 

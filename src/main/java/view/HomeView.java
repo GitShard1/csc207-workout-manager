@@ -20,7 +20,7 @@ public final class HomeView extends JPanel {
     public HomeView(HomeViewModel viewModel, LogOutController controller) {
         setLayout(new BoxLayout(this, BoxLayout.PAGE_AXIS));
         setBorder(new EmptyBorder(16, 20, 16, 20));
-        add(new JLabel("Home"));
+        add(new JLabel(HomeViewModel.TITLE));
         signedInAs.setName("Signed in as");
         add(signedInAs);
         handle.setName("Handle");

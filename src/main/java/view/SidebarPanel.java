@@ -57,6 +57,11 @@ public final class SidebarPanel extends JPanel {
         add(Box.createVerticalStrut(4));
     }
 
+    /** Whether this screen has a sidebar button, i.e. it's a signed-in screen. */
+    public boolean hasScreen(String viewName) {
+        return buttonsByViewName.containsKey(viewName);
+    }
+
     private void highlight(String viewName) {
         final JToggleButton button = buttonsByViewName.get(viewName);
 
