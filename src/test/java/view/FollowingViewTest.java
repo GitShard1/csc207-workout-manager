@@ -61,7 +61,7 @@ class FollowingViewTest {
             home = new HomeView(homeModel, new LogOutController(() -> {
                 currentUser.set(null);
                 viewManager.setState(LogInViewModel.VIEW_NAME);
-            }), viewManager);
+            }));
             homeModel.showSignedIn(AccountProfile.from(SAM));
             final FollowingViewModel followingModel = new FollowingViewModel();
             final FollowingInteractor interactor = new FollowingInteractor(() -> Optional.ofNullable(currentUser.get()),
@@ -70,9 +70,9 @@ class FollowingViewTest {
             following = new FollowingView(followingModel, controller, viewManager);
 
             final ViewManager views = new ViewManager(viewManager);
-            views.addView(HomeViewModel.VIEW_NAME, home);
-            views.addView(FollowingViewModel.VIEW_NAME, following);
             views.addView(LogInViewModel.VIEW_NAME, new JPanel());
+            views.addSignedInView(HomeViewModel.VIEW_NAME, "Dashboard", home);
+            views.addSignedInView(FollowingViewModel.VIEW_NAME, "Following", following);
         });
     }
 
@@ -259,7 +259,7 @@ class FollowingViewTest {
             button(home, "Log Out").doClick(0);
         });
         await(() -> LogInViewModel.VIEW_NAME.equals(viewManager.getState())
-                && button(home, "Following").isEnabled());
+                && button(home, "Log Out").isEnabled());
         onEdt(() -> {
             currentUser.set(CASEY);
             viewManager.setState(HomeViewModel.VIEW_NAME);
@@ -277,7 +277,7 @@ class FollowingViewTest {
 
     private void openFollowing() throws Exception {
         onEdt(() -> {
-            button(home, "Following").doClick(0);
+            viewManager.setState(FollowingViewModel.VIEW_NAME);
             assertTrue(following.isVisible());
             assertEquals("Loading Following...", status());
         });

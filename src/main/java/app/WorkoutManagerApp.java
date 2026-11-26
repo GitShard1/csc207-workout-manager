@@ -94,9 +94,12 @@ public final class WorkoutManagerApp {
         final LogInView logInView = new LogInView(logInViewModel, logIn, viewManagerModel);
         views.addView(LogInViewModel.VIEW_NAME, logInView);
         views.addView(RegisterViewModel.VIEW_NAME, new RegisterView(registerViewModel, register, viewManagerModel));
-        views.addView(HomeViewModel.VIEW_NAME, new HomeView(homeViewModel, logOut, viewManagerModel));
-        views.addView(FollowingViewModel.VIEW_NAME, new FollowingView(followingViewModel, following, viewManagerModel));
-        views.addView(SettingsViewModel.VIEW_NAME,
+
+        // Sidebar buttons show in this order, Home is labelled Dashboard in the gui
+        views.addSignedInView(HomeViewModel.VIEW_NAME, "Dashboard", new HomeView(homeViewModel, logOut));
+        views.addSignedInView(FollowingViewModel.VIEW_NAME, "Following",
+                new FollowingView(followingViewModel, following, viewManagerModel));
+        views.addSignedInView(SettingsViewModel.VIEW_NAME, "Settings",
                 new SettingsView(settingsViewModel, changePassword, viewManagerModel));
 
         final JFrame frame = new JFrame("Workout Manager");
