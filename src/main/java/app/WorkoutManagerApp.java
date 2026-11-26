@@ -30,6 +30,7 @@ import use_case.register.RegisterInteractor;
 import view.FollowingView;
 import view.HomeView;
 import view.LogInView;
+import view.PlaceholderView;
 import view.RegisterView;
 import view.SettingsView;
 import view.ViewManager;
@@ -97,6 +98,11 @@ public final class WorkoutManagerApp {
 
         // Sidebar buttons show in this order, Home is labelled Dashboard in the gui
         views.addSignedInView(HomeViewModel.VIEW_NAME, "Dashboard", new HomeView(homeViewModel, logOut));
+
+        // Placeholders until the real plan and history views are made, then swap the view in here
+        views.addSignedInView("workout plans", "Workout Plans", new PlaceholderView("Workout Plans"));
+        views.addSignedInView("progress history", "Progress History", new PlaceholderView("Progress History"));
+
         views.addSignedInView(FollowingViewModel.VIEW_NAME, "Following",
                 new FollowingView(followingViewModel, following, viewManagerModel));
         views.addSignedInView(SettingsViewModel.VIEW_NAME, "Settings",
