@@ -7,10 +7,11 @@ import use_case.account.StartSessionDataAccessInterface;
 import use_case.logout.LogOutSessionDataAccessInterface;
 
 import java.util.Optional;
+import java.util.UUID;
 
 /**
- * Holds the signed-in user for the lifetime of the app. Other Supabase DAOs read {@link #accessToken()} so their
- * requests run as the signed-in user, which lets row-level security apply.
+ * Holds the signed-in user for the lifetime of the app. Supabase DAOs use the session token so their requests
+ * run as that user and row-level security applies.
  */
 public final class InMemorySessionStore
         implements StartSessionDataAccessInterface, LogOutSessionDataAccessInterface, CurrentUserDataAccessInterface {
@@ -41,5 +42,10 @@ public final class InMemorySessionStore
 
     public synchronized Optional<String> accessToken() {
         return session == null ? Optional.empty() : Optional.of(session.accessToken());
+    }
+
+    /** Binds a request to the account checked by its use case, even if the current account changes. */
+    public synchronized Optional<String> accessTokenFor(UUID userId) {
+        return session != null && session.userId().equals(userId) ? accessToken() : Optional.empty();
     }
 }

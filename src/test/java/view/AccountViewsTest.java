@@ -16,22 +16,18 @@ import use_case.login.LogInFailure;
 import use_case.login.LogInOutputData;
 import use_case.register.RegisterFailure;
 
-import javax.swing.JButton;
-import javax.swing.JComponent;
-import javax.swing.JLabel;
 import javax.swing.JTextArea;
-import javax.swing.JTextField;
-import javax.swing.SwingUtilities;
-import java.awt.Component;
 import java.awt.Container;
 import java.util.UUID;
-import java.util.concurrent.Callable;
-import java.util.concurrent.FutureTask;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Predicate;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static view.SwingTestSupport.await;
+import static view.SwingTestSupport.button;
+import static view.SwingTestSupport.field;
+import static view.SwingTestSupport.find;
+import static view.SwingTestSupport.label;
+import static view.SwingTestSupport.onEdt;
 
 /** Drives the real views, view models and presenters, with the use cases replaced by scripted responses. */
 class AccountViewsTest {
@@ -133,61 +129,7 @@ class AccountViewsTest {
         });
     }
 
-    private static JTextField field(Container form, String labelText) {
-        return (JTextField) find(form, JLabel.class, label -> labelText.equals(label.getText())).getLabelFor();
-    }
-
-    private static JLabel label(Container container, String name) {
-        return find(container, JLabel.class, label -> name.equals(label.getName()));
-    }
-
-    private static JButton button(Container container, String text) {
-        return find(container, JButton.class, button -> text.equals(button.getText()));
-    }
-
     private static String status(Container form) {
         return find(form, JTextArea.class, area -> "Form status".equals(area.getName())).getText();
-    }
-
-    private static <T extends JComponent> T find(Container container, Class<T> type, Predicate<T> match) {
-        for (Component child : container.getComponents()) {
-            if (type.isInstance(child) && match.test(type.cast(child))) {
-                return type.cast(child);
-            }
-            if (child instanceof Container nested) {
-                final T found = findOrNull(nested, type, match);
-                if (found != null) {
-                    return found;
-                }
-            }
-        }
-        throw new AssertionError("No matching " + type.getSimpleName());
-    }
-
-    private static <T extends JComponent> T findOrNull(Container container, Class<T> type, Predicate<T> match) {
-        try {
-            return find(container, type, match);
-        } catch (AssertionError ignored) {
-            return null;
-        }
-    }
-
-    private static void onEdt(Runnable action) throws Exception {
-        final FutureTask<Void> task = new FutureTask<>(action, null);
-        SwingUtilities.invokeAndWait(task);
-        task.get();
-    }
-
-    private static void await(Callable<Boolean> condition) throws Exception {
-        final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
-        while (System.nanoTime() < deadline) {
-            final FutureTask<Boolean> check = new FutureTask<>(condition);
-            SwingUtilities.invokeAndWait(check);
-            if (check.get()) {
-                return;
-            }
-            Thread.sleep(20);
-        }
-        throw new AssertionError("Timed out waiting for the UI");
     }
 }
