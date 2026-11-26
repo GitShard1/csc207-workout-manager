@@ -76,24 +76,29 @@ public final class FollowingView extends JPanel {
             }
         });
         refresh.addActionListener(event -> loadFollowing());
-        back.addActionListener(event -> {
-            viewModel.setState(FollowingState.empty());
-            username.setText("");
-            viewManager.setState(HomeViewModel.VIEW_NAME);
-        });
+        back.addActionListener(event -> viewManager.setState(HomeViewModel.VIEW_NAME));
         viewModel.addPropertyChangeListener(event ->
                 SwingThreads.onEdt(() -> render((FollowingState) event.getNewValue())));
-        viewManager.addPropertyChangeListener(event -> {
+
+        // Clearing on every way out, not just Back, keeps one account's bookmarks and search away from the next
+        viewManager.addPropertyChangeListener(event -> SwingThreads.onEdt(() -> {
             if (viewModel.getViewName().equals(event.getNewValue())) {
-                SwingThreads.onEdt(this::loadFollowing);
+                loadFollowing();
+            } else {
+                clear();
             }
-        });
+        }));
         render(viewModel.getState());
         setBusy(false);
     }
 
     private void loadFollowing() {
         run("Loading Following...", controller::loadFollowing);
+    }
+
+    private void clear() {
+        viewModel.setState(FollowingState.empty());
+        username.setText("");
     }
 
     private void run(String message, Runnable action) {

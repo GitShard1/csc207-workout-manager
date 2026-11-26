@@ -18,6 +18,7 @@ import use_case.following.FollowingInteractor;
 import javax.swing.JButton;
 import javax.swing.JList;
 import javax.swing.JPanel;
+import javax.swing.JToggleButton;
 import javax.swing.SwingUtilities;
 import java.util.ArrayList;
 import java.util.List;
@@ -51,6 +52,7 @@ class FollowingViewTest {
     private final ViewManagerModel viewManager = new ViewManagerModel(HomeViewModel.VIEW_NAME);
     private final FollowingFixture bookmarks = new FollowingFixture();
 
+    private ViewManager views;
     private HomeView home;
     private FollowingView following;
 
@@ -69,7 +71,7 @@ class FollowingViewTest {
             final var controller = new FollowingController(interactor, interactor, interactor);
             following = new FollowingView(followingModel, controller, viewManager);
 
-            final ViewManager views = new ViewManager(viewManager);
+            views = new ViewManager(viewManager);
             views.addView(LogInViewModel.VIEW_NAME, new JPanel());
             views.addSignedInView(HomeViewModel.VIEW_NAME, "Dashboard", home);
             views.addSignedInView(FollowingViewModel.VIEW_NAME, "Following", following);
@@ -275,6 +277,34 @@ class FollowingViewTest {
         });
     }
 
+    @Test
+    void leavingThroughTheSidebarHidesTheAccountsFromTheNextUser() throws Exception {
+        bookmarks.saved.put(SAM.getUserID(), List.of(ALEX));
+        openFollowing();
+        search("alex_1");
+        onEdt(() -> {
+            sidebarButton("Dashboard").doClick(0);
+            button(home, "Log Out").doClick(0);
+        });
+        await(() -> LogInViewModel.VIEW_NAME.equals(viewManager.getState())
+                && button(home, "Log Out").isEnabled());
+        bookmarks.failList = true;
+        onEdt(() -> {
+            currentUser.set(CASEY);
+            viewManager.setState(HomeViewModel.VIEW_NAME);
+            sidebarButton("Following").doClick(0);
+        });
+        await(() -> button(following, "Search").isEnabled());
+
+        onEdt(() -> {
+            assertEquals("Couldn't load Following. Try again.", status());
+            assertEquals(0, followingList().getModel().getSize());
+            assertEquals("", label(following, "Account result").getText());
+            assertFalse(followButton().isVisible());
+            assertEquals("", field(following, "Username").getText());
+        });
+    }
+
     private void openFollowing() throws Exception {
         onEdt(() -> {
             viewManager.setState(FollowingViewModel.VIEW_NAME);
@@ -298,6 +328,10 @@ class FollowingViewTest {
 
     private String status() {
         return label(following, "Following status").getText();
+    }
+
+    private JToggleButton sidebarButton(String label) {
+        return find(views, JToggleButton.class, button -> label.equals(button.getText()));
     }
 
     private JList<?> followingList() {

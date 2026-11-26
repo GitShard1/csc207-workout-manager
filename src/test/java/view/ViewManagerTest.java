@@ -7,10 +7,14 @@ import org.junit.jupiter.api.Test;
 import javax.swing.JPanel;
 import javax.swing.JToggleButton;
 import java.awt.Component;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static view.SwingTestSupport.await;
 import static view.SwingTestSupport.find;
 import static view.SwingTestSupport.onEdt;
 
@@ -70,6 +74,30 @@ class ViewManagerTest {
             assertTrue(sidebarButton("Following").isSelected());
             assertFalse(sidebarButton("Dashboard").isSelected());
         });
+    }
+
+    @Test
+    void signedInScreenIsShownOnEverySignInAndHiddenOnSignOut() throws Exception {
+        final AtomicInteger shown = new AtomicInteger();
+        final AtomicInteger hidden = new AtomicInteger();
+        onEdt(() -> home.addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentShown(ComponentEvent event) {
+                shown.incrementAndGet();
+            }
+
+            @Override
+            public void componentHidden(ComponentEvent event) {
+                hidden.incrementAndGet();
+            }
+        }));
+
+        onEdt(() -> viewManagerModel.setState("home"));
+        await(() -> shown.get() == 1);
+        onEdt(() -> viewManagerModel.setState("log in"));
+        await(() -> hidden.get() == 1);
+        onEdt(() -> viewManagerModel.setState("home"));
+        await(() -> shown.get() == 2);
     }
 
     private JToggleButton sidebarButton(String label) {

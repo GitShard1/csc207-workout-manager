@@ -12,6 +12,7 @@ import java.awt.CardLayout;
  */
 public final class ViewManager extends JPanel {
     private static final String SIGNED_IN = "signed in";
+    private static final String NO_SCREEN = "no screen";
 
     // Cards are a generic Java Swing thing
     private final CardLayout cards = new CardLayout();
@@ -27,6 +28,10 @@ public final class ViewManager extends JPanel {
         sidebar = new SidebarPanel(model);
         signedInSidePanel.add(sidebar, BorderLayout.WEST);
         signedInSidePanel.add(signedInContent, BorderLayout.CENTER);
+
+        // While signed out, a blank card hides every signed-in view, so each one gets componentShown and
+        // componentHidden when the user enters or leaves it, the same as a full-window view would.
+        signedInContent.add(new JPanel(), NO_SCREEN);
 
         model.addPropertyChangeListener(event ->
                 SwingThreads.onEdt(() -> show((String) event.getNewValue())));
@@ -57,6 +62,7 @@ public final class ViewManager extends JPanel {
             cards.show(this, SIGNED_IN);
         } else {
             cards.show(this, viewName);
+            signedInCards.show(signedInContent, NO_SCREEN);
         }
     }
 }
