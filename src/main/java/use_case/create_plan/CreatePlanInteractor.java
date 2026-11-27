@@ -1,15 +1,13 @@
 package use_case.create_plan;
 
-import entity.Exercise;
-import entity.PlannedExercise;
 import entity.User;
 import entity.WorkoutPlan;
 import use_case.account.CurrentUserDataAccessInterface;
 import use_case.plan_common.ExerciseLookupDataAccessInterface;
 import use_case.plan_common.PlanInputValidator;
 import use_case.plan_common.PlanStorageUnavailableException;
+import use_case.plan_common.PlannedExerciseBuilder;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -62,20 +60,14 @@ public class CreatePlanInteractor implements CreatePlanInputBoundary {
             return;
         }
 
-        final ArrayList<PlannedExercise> templateExercises = new ArrayList<>();
-        int row = 0;
-        for (CreatePlanInputData.ExerciseEntry entry : exercises) {
-            row += 1;
-            final Exercise exercise = exerciseLookup.findById(entry.exerciseId());
-            if (exercise == null) {
-                presenter.prepareFailView("Row " + row + ": exercise not found.");
-                return;
-            }
-            templateExercises.add(new PlannedExercise(exercise, entry.sets(), entry.reps(), entry.weight()));
+        final PlannedExerciseBuilder.Result builtExercises = PlannedExerciseBuilder.build(exercises, exerciseLookup);
+        if (!builtExercises.error().isBlank()) {
+            presenter.prepareFailView(builtExercises.error());
+            return;
         }
 
         final WorkoutPlan newPlan = new WorkoutPlan(UUID.randomUUID(), name, ownerId,
-                templateExercises, false, false, null);
+                builtExercises.exercises(), false, false, null);
 
         try {
             planDataAccess.save(newPlan);

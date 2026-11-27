@@ -55,7 +55,7 @@ class PlanEditorViewTest {
     private final ViewManagerModel viewManagerModel = new ViewManagerModel(HomeViewModel.VIEW_NAME);
     private final PlanEditorViewModel viewModel = new PlanEditorViewModel();
     private final EditPlanPresenter editPresenter = new EditPlanPresenter(viewModel, viewManagerModel);
-    private final CreatePlanPresenter createPresenter = new CreatePlanPresenter(viewModel);
+    private final CreatePlanPresenter createPresenter = new CreatePlanPresenter(viewModel, viewManagerModel);
     private final ScriptedEditPlan editPlan = new ScriptedEditPlan(editPresenter);
     private final EditPlanController editController = new EditPlanController(editPlan);
     private final OpenPlanPresenter openPresenter = new OpenPlanPresenter(viewModel, viewManagerModel);
@@ -183,6 +183,7 @@ class PlanEditorViewTest {
     @Test
     void newPlanUsesCreateTest() throws Exception {
         build();
+        viewManagerModel.setState(PlanEditorViewModel.VIEW_NAME);
         onEdt(() -> {
             assertTrue(hasLabel(view, "New plan"));
             assertNull(findOrNull(view, JButton.class, button -> "Delete plan".equals(button.getText())));
@@ -197,6 +198,7 @@ class PlanEditorViewTest {
         assertEquals("Leg Day", created.name());
         assertTrue(created.exercises().isEmpty());
         assertNull(editPlan.lastInput);
+        assertEquals(HomeViewModel.VIEW_NAME, viewManagerModel.getState());
     }
 
     @Test

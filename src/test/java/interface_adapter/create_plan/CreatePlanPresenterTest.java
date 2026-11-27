@@ -1,5 +1,7 @@
 package interface_adapter.create_plan;
 
+import interface_adapter.ViewManagerModel;
+import interface_adapter.home.HomeViewModel;
 import interface_adapter.plan_editor.PlanEditorState;
 import interface_adapter.plan_editor.PlanEditorViewModel;
 import org.junit.jupiter.api.Test;
@@ -12,7 +14,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CreatePlanPresenterTest {
     private final PlanEditorViewModel planEditorViewModel = new PlanEditorViewModel();
-    private final CreatePlanPresenter presenter = new CreatePlanPresenter(planEditorViewModel);
+    private final ViewManagerModel viewManagerModel = new ViewManagerModel(PlanEditorViewModel.VIEW_NAME);
+    private final CreatePlanPresenter presenter = new CreatePlanPresenter(planEditorViewModel, viewManagerModel);
 
     @Test
     void successClearsTheEditorTest() {
@@ -20,6 +23,7 @@ class CreatePlanPresenterTest {
         presenter.prepareSuccessView(new CreatePlanOutputData(UUID.randomUUID(), "Push Day", 1));
 
         assertEquals(PlanEditorState.empty(), planEditorViewModel.getState());
+        assertEquals(HomeViewModel.VIEW_NAME, viewManagerModel.getState());
     }
 
     @Test
@@ -30,6 +34,7 @@ class CreatePlanPresenterTest {
         assertEquals("Add at least one exercise.", state.error());
         assertTrue(state.isNewPlan());
         assertEquals("", state.name());
+        assertEquals(PlanEditorViewModel.VIEW_NAME, viewManagerModel.getState());
     }
 
     @Test

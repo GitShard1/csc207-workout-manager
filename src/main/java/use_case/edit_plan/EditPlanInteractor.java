@@ -9,6 +9,7 @@ import use_case.plan_common.ExerciseLookupDataAccessInterface;
 import use_case.plan_common.PlanAccessValidator;
 import use_case.plan_common.PlanInputValidator;
 import use_case.plan_common.PlanStorageUnavailableException;
+import use_case.plan_common.PlannedExerciseBuilder;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -61,21 +62,15 @@ public class EditPlanInteractor implements EditPlanInputBoundary {
             return;
         }
 
-        final ArrayList<PlannedExercise> checkedExercises = new ArrayList<>();
-        int row = 0;
-        for (EditPlanInputData.ExerciseEntry entry : exercises) {
-            row += 1;
-            final Exercise exercise = exerciseLookup.findById(entry.exerciseId());
-            if (exercise == null) {
-                presenter.prepareFailView("Row " + row + ": exercise not found.");
-                return;
-            }
-            checkedExercises.add(new PlannedExercise(exercise, entry.sets(), entry.reps(), entry.weight()));
+        final PlannedExerciseBuilder.Result builtExercises = PlannedExerciseBuilder.build(exercises, exerciseLookup);
+        if (!builtExercises.error().isBlank()) {
+            presenter.prepareFailView(builtExercises.error());
+            return;
         }
 
         final WorkoutPlan editedWorkoutPlan = new WorkoutPlan(targetPlan.getWorkoutPlanID(), name,
-                targetPlan.getUserOwnerID(), checkedExercises, targetPlan.isWorkoutCompleted(), false,
-                targetPlan.getCopiedFromUserID());
+                targetPlan.getUserOwnerID(), builtExercises.exercises(), targetPlan.isWorkoutCompleted(),
+                targetPlan.isPreset(), targetPlan.getCopiedFromUserID());
 
         try {
             dataAccess.update(editedWorkoutPlan);
