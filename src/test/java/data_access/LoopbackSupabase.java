@@ -32,6 +32,7 @@ final class LoopbackSupabase implements AutoCloseable {
                         exchange.getRequestHeaders().getFirst("apikey"),
                         exchange.getRequestHeaders().getFirst("Authorization"),
                         exchange.getRequestHeaders().getFirst("Content-Type"),
+                        exchange.getRequestHeaders().getFirst("Prefer"),
                         new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8)));
                 final Reply reply = replies.poll();
                 if (reply == null) {
@@ -100,7 +101,8 @@ final class LoopbackSupabase implements AutoCloseable {
         executor.shutdownNow();
     }
 
-    record Call(String method, String path, String apiKey, String authorization, String contentType, String body) { }
+    record Call(String method, String path, String apiKey, String authorization, String contentType, String prefer,
+                String body) { }
 
     private record Reply(int status, String body, String location, boolean stallBody, Runnable onRequest) { }
 }

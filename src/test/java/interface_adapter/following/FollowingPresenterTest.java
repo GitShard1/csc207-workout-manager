@@ -9,6 +9,8 @@ import use_case.following.FollowSavedOutputData;
 import use_case.following.FollowingAccountOutputData;
 import use_case.following.FollowingListOutputData;
 import use_case.following.FollowingOutputBoundary.Failure;
+import use_case.unfollow_account.UnfollowAccountOutputBoundary;
+import use_case.unfollow_account.UnfollowAccountOutputData;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -131,6 +133,39 @@ class FollowingPresenterTest {
         assertNull(viewModel.getState().result());
         assertEquals(List.of(), viewModel.getState().accounts());
         assertEquals("Sign in to use Following.", viewModel.getState().message());
+    }
+
+    @Test
+    void unfollowRemovesTheMatchingIdAndKeepsTheSearchResultAndOtherRows() {
+        final Item renamed = new Item(ALEX_ID, "alex_1", "@alex_1 - Alexander");
+        viewModel.setState(new FollowingState(renamed, List.of(CASEY_ROW, ALEX_ROW), ""));
+
+        presenter.showUnfollowed(new UnfollowAccountOutputData(ALEX_ID));
+
+        assertEquals(new FollowingState(renamed, List.of(CASEY_ROW), "Account unfollowed."), viewModel.getState());
+    }
+
+    @ParameterizedTest
+    @CsvSource(value = {
+        "NO_ACCOUNT_SELECTED | Select an account to unfollow.",
+        "DELETE_FAILED | Couldn't unfollow the account. Try again."
+    }, delimiter = '|')
+    void unfollowFailuresKeepTheSearchResultAndBookmarks(UnfollowAccountOutputBoundary.Failure failure,
+                                                         String message) {
+        viewModel.setState(new FollowingState(ALEX_ROW, List.of(CASEY_ROW, ALEX_ROW), ""));
+
+        presenter.showUnfollowFailure(failure);
+
+        assertEquals(new FollowingState(ALEX_ROW, List.of(CASEY_ROW, ALEX_ROW), message), viewModel.getState());
+    }
+
+    @Test
+    void unfollowWithoutASessionClearsPrivateDetails() {
+        viewModel.setState(new FollowingState(ALEX_ROW, List.of(CASEY_ROW), ""));
+
+        presenter.showUnfollowFailure(UnfollowAccountOutputBoundary.Failure.SIGN_IN_REQUIRED);
+
+        assertEquals(new FollowingState(null, List.of(), "Sign in to use Following."), viewModel.getState());
     }
 
     @Test

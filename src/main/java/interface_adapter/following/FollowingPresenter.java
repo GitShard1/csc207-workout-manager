@@ -6,11 +6,13 @@ import use_case.following.FollowSavedOutputData;
 import use_case.following.FollowingAccountOutputData;
 import use_case.following.FollowingListOutputData;
 import use_case.following.FollowingOutputBoundary;
+import use_case.unfollow_account.UnfollowAccountOutputBoundary;
+import use_case.unfollow_account.UnfollowAccountOutputData;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public final class FollowingPresenter implements FollowingOutputBoundary {
+public final class FollowingPresenter implements FollowingOutputBoundary, UnfollowAccountOutputBoundary {
     private final FollowingViewModel viewModel;
 
     public FollowingPresenter(FollowingViewModel viewModel) {
@@ -44,10 +46,10 @@ public final class FollowingPresenter implements FollowingOutputBoundary {
     }
 
     @Override
-    public void showFailure(Failure failure) {
+    public void showFailure(FollowingOutputBoundary.Failure failure) {
         final FollowingState state = viewModel.getState();
         final FollowingState next = switch (failure) {
-            case SIGN_IN_REQUIRED -> new FollowingState(null, List.of(), "Sign in to use Following.");
+            case SIGN_IN_REQUIRED -> signInRequired();
             case ACCOUNT_NOT_FOUND -> new FollowingState(null, state.accounts(), "No account found for that username.");
             case LOOKUP_FAILED ->
                     new FollowingState(null, state.accounts(), "Couldn't look up that account. Try again.");
@@ -59,6 +61,32 @@ public final class FollowingPresenter implements FollowingOutputBoundary {
                     new FollowingState(state.result(), state.accounts(), "Couldn't save the follow. Try again.");
         };
         viewModel.setState(next);
+    }
+
+    @Override
+    public void showUnfollowed(UnfollowAccountOutputData output) {
+        final FollowingState state = viewModel.getState();
+        final List<Item> remaining = state.accounts().stream()
+                .filter(account -> !account.accountId().equals(output.followedId()))
+                .toList();
+        viewModel.setState(new FollowingState(state.result(), remaining, "Account unfollowed."));
+    }
+
+    @Override
+    public void showUnfollowFailure(UnfollowAccountOutputBoundary.Failure failure) {
+        final FollowingState state = viewModel.getState();
+        final FollowingState next = switch (failure) {
+            case SIGN_IN_REQUIRED -> signInRequired();
+            case NO_ACCOUNT_SELECTED -> new FollowingState(state.result(), state.accounts(),
+                    "Select an account to unfollow.");
+            case DELETE_FAILED -> new FollowingState(state.result(), state.accounts(),
+                    "Couldn't unfollow the account. Try again.");
+        };
+        viewModel.setState(next);
+    }
+
+    private static FollowingState signInRequired() {
+        return new FollowingState(null, List.of(), "Sign in to use Following.");
     }
 
     private static Item item(AccountProfile profile) {
