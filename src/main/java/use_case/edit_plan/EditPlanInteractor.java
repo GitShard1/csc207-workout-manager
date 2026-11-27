@@ -32,16 +32,6 @@ public class EditPlanInteractor implements EditPlanInputBoundary {
     }
 
     @Override
-    public void loadPlan(UUID planId) {
-        final WorkoutPlan targetPlan = findEditablePlan(planId);
-        if (targetPlan == null) {
-            return;
-        }
-
-        presenter.prepareSuccessView(toOutputData(targetPlan));
-    }
-
-    @Override
     public void execute(EditPlanInputData inputData) {
         final String name = inputData.name();
         final List<EditPlanInputData.ExerciseEntry> exercises = inputData.exercises();

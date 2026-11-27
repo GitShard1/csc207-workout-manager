@@ -14,10 +14,6 @@ public class EditPlanController {
         this.interactor = interactor;
     }
 
-    public void loadPlan(UUID planId) {
-        interactor.loadPlan(planId);
-    }
-
     public void execute(UUID planId, String name, List<String> exerciseIds, List<Integer> sets, List<Integer> reps,
                         List<Double> weights) {
         final ArrayList<EditPlanInputData.ExerciseEntry> exerciseEntries = new ArrayList<>();

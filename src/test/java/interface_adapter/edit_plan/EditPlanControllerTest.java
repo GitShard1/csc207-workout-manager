@@ -34,21 +34,9 @@ class EditPlanControllerTest {
         assertEquals(List.of(), interactor.inputData.exercises());
     }
 
-    @Test
-    void loadPassesThePlanIdTest() {
-        controller.loadPlan(planId);
-        assertEquals(planId, interactor.loadedId);
-    }
-
     /** Remembers what the controller sent. */
     private static class RecordingInteractor implements EditPlanInputBoundary {
         private EditPlanInputData inputData;
-        private UUID loadedId;
-
-        @Override
-        public void loadPlan(UUID planId) {
-            loadedId = planId;
-        }
 
         @Override
         public void execute(EditPlanInputData inputData) {

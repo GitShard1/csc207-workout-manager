@@ -56,17 +56,6 @@ class EditPlanInteractorTest {
     }
 
     @Test
-    void loadShowsThePlanTest() {
-        interactor().loadPlan(pushDay.getWorkoutPlanID());
-
-        assertEquals(pushDay.getWorkoutPlanID(), presenter.success.planId());
-        assertEquals("Push Day", presenter.success.name());
-        assertEquals(List.of(new EditPlanOutputData.ExerciseEntry("0025", "Barbell Bench Press", 3, 8, 60.0)),
-                presenter.success.exercises());
-        assertNull(presenter.error);
-    }
-
-    @Test
     void successTest() {
         // Rename, reorder (squat first), change bench press targets and drop its weight
         save(pushDay.getWorkoutPlanID(), "Full Body", List.of(entry("0043", 5, 5, 100.0), entry("0025", 4, 10, null)));
@@ -158,9 +147,10 @@ class EditPlanInteractorTest {
     void failureNotLoggedInTest() {
         currentUserDataAccessObject = Optional::empty;
 
-        interactor().loadPlan(pushDay.getWorkoutPlanID());
+        save(pushDay.getWorkoutPlanID(), "Push Day", List.of(entry("0025", 3, 8, 60.0)));
 
         assertEquals("No user is logged in.", presenter.error);
+        assertNull(planDataAccessObject.updated);
         assertNull(presenter.success);
     }
 
@@ -208,9 +198,10 @@ class EditPlanInteractorTest {
     void failureStorageDownWhenLoadingTest() {
         planDataAccessObject.failGetById = true;
 
-        interactor().loadPlan(pushDay.getWorkoutPlanID());
+        save(pushDay.getWorkoutPlanID(), "Push Day", List.of(entry("0025", 3, 8, 60.0)));
 
         assertEquals("Couldn't reach your plans right now. Please try again.", presenter.error);
+        assertNull(planDataAccessObject.updated);
         assertNull(presenter.success);
     }
 

@@ -6,6 +6,8 @@ import interface_adapter.create_plan.CreatePlanPresenter;
 import interface_adapter.edit_plan.EditPlanController;
 import interface_adapter.edit_plan.EditPlanPresenter;
 import interface_adapter.home.HomeViewModel;
+import interface_adapter.open_plan.OpenPlanController;
+import interface_adapter.open_plan.OpenPlanPresenter;
 import interface_adapter.plan_editor.PlanEditorViewModel;
 import org.junit.jupiter.api.Test;
 import use_case.create_plan.CreatePlanInputData;
@@ -13,6 +15,7 @@ import use_case.create_plan.CreatePlanOutputData;
 import use_case.edit_plan.EditPlanInputBoundary;
 import use_case.edit_plan.EditPlanInputData;
 import use_case.edit_plan.EditPlanOutputData;
+import use_case.open_plan.OpenPlanOutputData;
 
 import javax.swing.JButton;
 import javax.swing.JComponent;
@@ -44,9 +47,9 @@ class PlanEditorViewTest {
     private static final int WEIGHT_COLUMN = 4;
 
     private static final UUID PLAN_ID = UUID.randomUUID();
-    private static final EditPlanOutputData PUSH_DAY = new EditPlanOutputData(PLAN_ID, "Push Day", List.of(
-            new EditPlanOutputData.ExerciseEntry("0025", "Barbell Bench Press", 3, 8, 60.0),
-            new EditPlanOutputData.ExerciseEntry("0043", "Barbell Squat", 5, 5, 100.0)));
+    private static final OpenPlanOutputData OPEN_PUSH_DAY = new OpenPlanOutputData(PLAN_ID, "Push Day", List.of(
+            new OpenPlanOutputData.ExerciseEntry("0025", "Barbell Bench Press", 3, 8, 60.0),
+            new OpenPlanOutputData.ExerciseEntry("0043", "Barbell Squat", 5, 5, 100.0)));
 
     private final ViewManagerModel viewManagerModel = new ViewManagerModel(HomeViewModel.VIEW_NAME);
     private final PlanEditorViewModel viewModel = new PlanEditorViewModel();
@@ -54,6 +57,13 @@ class PlanEditorViewTest {
     private final CreatePlanPresenter createPresenter = new CreatePlanPresenter(viewModel);
     private final ScriptedEditPlan editPlan = new ScriptedEditPlan(editPresenter);
     private final EditPlanController editController = new EditPlanController(editPlan);
+    private final OpenPlanPresenter openPresenter = new OpenPlanPresenter(viewModel, viewManagerModel);
+
+    private volatile UUID openedId;
+    private final OpenPlanController openController = new OpenPlanController(request -> {
+        openedId = request.planId();
+        openPresenter.prepareSuccessView(OPEN_PUSH_DAY);
+    });
 
     private volatile CreatePlanInputData created;
     private boolean discardConfirmed;
@@ -79,7 +89,7 @@ class PlanEditorViewTest {
             assertEquals(100.0, table(view).getModel().getValueAt(1, WEIGHT_COLUMN));
             assertNull(findOrNull(view, JButton.class, button -> "Delete plan".equals(button.getText())));
         });
-        assertEquals(PLAN_ID, editPlan.lastLoadedId);
+        assertEquals(PLAN_ID, openedId);
         assertEquals(PlanEditorViewModel.VIEW_NAME, viewManagerModel.getState());
     }
 
@@ -265,25 +275,18 @@ class PlanEditorViewTest {
 
     private void buildAndLoad() throws Exception {
         build();
-        onEdt(() -> editController.loadPlan(PLAN_ID));
+        onEdt(() -> openController.execute(PLAN_ID));
     }
 
-    /** Answers loads and saves the way the real use case would, without a data store. */
+    /** Answers saves the way the real use case would, without a data store. */
     private static class ScriptedEditPlan implements EditPlanInputBoundary {
         private final EditPlanPresenter presenter;
         private volatile EditPlanInputData lastInput;
-        private volatile UUID lastLoadedId;
         private volatile Consumer<EditPlanInputData> response;
 
         ScriptedEditPlan(EditPlanPresenter presenter) {
             this.presenter = presenter;
             this.response = this::saveSucceeds;
-        }
-
-        @Override
-        public void loadPlan(UUID planId) {
-            lastLoadedId = planId;
-            presenter.prepareSuccessView(PUSH_DAY);
         }
 
         @Override
@@ -302,7 +305,7 @@ class PlanEditorViewTest {
         }
 
         private String nameOf(String exerciseId) {
-            for (EditPlanOutputData.ExerciseEntry known : PUSH_DAY.exercises()) {
+            for (OpenPlanOutputData.ExerciseEntry known : OPEN_PUSH_DAY.exercises()) {
                 if (known.exerciseId().equals(exerciseId)) {
                     return known.exerciseName();
                 }
