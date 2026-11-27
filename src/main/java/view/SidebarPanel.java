@@ -37,7 +37,6 @@ public final class SidebarPanel extends JPanel {
         add(title);
         add(Box.createVerticalStrut(12));
 
-        // Highlight whichever screen is showing, even if something else switched to it (like a Back button)
         viewManagerModel.addPropertyChangeListener(event ->
                 SwingThreads.onEdt(() -> highlight((String) event.getNewValue())));
     }

@@ -17,7 +17,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Layout and behaviour shared by the Log In and Register forms. Subclasses add their fields, then call
+ * Layout and behaviour shared by the account forms. Subclasses add their fields, then call
  * {@link #addActions}. A form clears itself whenever it is hidden.
  */
 abstract class AccountForm extends JPanel {
@@ -54,9 +54,6 @@ abstract class AccountForm extends JPanel {
     /** Called when the user submits the form. */
     protected abstract void submit();
 
-    /** Called when the user switches to the other form. */
-    protected abstract void navigate();
-
     protected JTextField addTextField(String label, char mnemonic) {
         return addField(label, mnemonic, new JTextField(COLUMNS));
     }
@@ -82,7 +79,11 @@ abstract class AccountForm extends JPanel {
         return input;
     }
 
-    protected void addActions(String submitText, String navigateText) {
+    protected void addActions(String submitText) {
+        addActions(submitText, null, null);
+    }
+
+    protected void addActions(String submitText, String navigateText, Runnable navigateAction) {
         status.setName("Form status");
         status.setEditable(false);
         status.setFocusable(false);
@@ -94,11 +95,13 @@ abstract class AccountForm extends JPanel {
 
         submit = new JButton(submitText);
         submit.addActionListener(event -> submit());
-        navigate = new JButton(navigateText);
-        navigate.addActionListener(event -> navigate());
         final JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEADING));
         actions.add(submit);
-        actions.add(navigate);
+        if (navigateAction != null) {
+            navigate = new JButton(navigateText);
+            navigate.addActionListener(event -> navigateAction.run());
+            actions.add(navigate);
+        }
         add(actions, row);
         row.weighty = 1;
         add(new JPanel(), row);
@@ -181,7 +184,9 @@ abstract class AccountForm extends JPanel {
 
     private void setBusy(boolean busy) {
         submit.setEnabled(!busy);
-        navigate.setEnabled(!busy);
+        if (navigate != null) {
+            navigate.setEnabled(!busy);
+        }
         fieldErrors.keySet().forEach(field -> field.setEnabled(!busy));
     }
 }

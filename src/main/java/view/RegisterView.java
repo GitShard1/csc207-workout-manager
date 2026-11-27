@@ -11,7 +11,6 @@ import javax.swing.JTextField;
 
 public final class RegisterView extends AccountForm {
     private final RegisterController controller;
-    private final ViewManagerModel viewManager;
     private final JTextField email;
     private final JTextField username;
     private final JTextField displayName;
@@ -21,13 +20,12 @@ public final class RegisterView extends AccountForm {
     public RegisterView(RegisterViewModel viewModel, RegisterController controller, ViewManagerModel viewManager) {
         super("Register");
         this.controller = controller;
-        this.viewManager = viewManager;
         email = addTextField("Email", 'E');
         username = addTextField("Username", 'U');
         displayName = addTextField("Display name", 'D');
         password = addPasswordField("Password", 'P');
         confirmation = addPasswordField("Confirm password", 'C');
-        addActions("Register", "Back to Log In");
+        addActions("Register", "Back to Log In", () -> viewManager.setState(LogInViewModel.VIEW_NAME));
         viewModel.addPropertyChangeListener(event ->
                 SwingThreads.onEdt(() -> render((RegisterState) event.getNewValue())));
     }
@@ -44,11 +42,6 @@ public final class RegisterView extends AccountForm {
                         submittedPassword, submittedConfirmation),
                 () -> showFormError("Registration was interrupted. Try logging in before registering again.", password),
                 this::finishAction);
-    }
-
-    @Override
-    protected void navigate() {
-        viewManager.setState(LogInViewModel.VIEW_NAME);
     }
 
     private void render(RegisterState state) {

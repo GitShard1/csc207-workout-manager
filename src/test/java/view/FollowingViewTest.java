@@ -101,7 +101,7 @@ class FollowingViewTest {
         onEdt(() -> {
             assertEquals("Already following", status());
             assertEquals(1, followingList().getModel().getSize());
-            button(following, "Back to Home").doClick(0);
+            sidebarButton("Dashboard").doClick(0);
             assertTrue(home.isVisible());
             assertEquals(0, followingList().getModel().getSize());
         });
@@ -166,7 +166,6 @@ class FollowingViewTest {
                 assertFalse(followButton().isEnabled());
                 assertFalse(button(following, "Search").isEnabled());
                 assertFalse(button(following, "Refresh").isEnabled());
-                assertFalse(button(following, "Back to Home").isEnabled());
                 assertFalse(field(following, "Username").isEnabled());
                 assertEquals("Saving follow...", status());
                 followButton().doClick(0);
@@ -180,7 +179,6 @@ class FollowingViewTest {
             assertEquals("Couldn't save the follow. Try again.", status());
             assertEquals(0, followingList().getModel().getSize());
             assertEquals("@alex_1 - Alex", label(following, "Account result").getText());
-            assertTrue(button(following, "Back to Home").isEnabled());
             bookmarks.failSave = false;
             followButton().doClick(0);
         });
@@ -213,7 +211,6 @@ class FollowingViewTest {
         onEdt(() -> {
             assertEquals("Something went wrong. Try again.", status());
             assertTrue(button(following, "Refresh").isEnabled());
-            assertTrue(button(following, "Back to Home").isEnabled());
             bookmarks.failUnexpectedly = false;
             button(following, "Refresh").doClick(0);
         });
@@ -257,7 +254,7 @@ class FollowingViewTest {
         search("alex_1");
         onEdt(() -> {
             assertEquals("@alex_1 - Alex", followingList().getModel().getElementAt(0));
-            button(following, "Back to Home").doClick(0);
+            sidebarButton("Dashboard").doClick(0);
             button(home, "Log Out").doClick(0);
         });
         await(() -> LogInViewModel.VIEW_NAME.equals(viewManager.getState())
@@ -307,7 +304,7 @@ class FollowingViewTest {
 
     private void openFollowing() throws Exception {
         onEdt(() -> {
-            viewManager.setState(FollowingViewModel.VIEW_NAME);
+            sidebarButton("Following").doClick(0);
             assertTrue(following.isVisible());
             assertEquals("Loading Following...", status());
         });

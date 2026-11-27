@@ -4,7 +4,6 @@ import interface_adapter.ViewManagerModel;
 import interface_adapter.following.FollowingController;
 import interface_adapter.following.FollowingState;
 import interface_adapter.following.FollowingViewModel;
-import interface_adapter.home.HomeViewModel;
 
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
@@ -27,7 +26,6 @@ public final class FollowingView extends JPanel {
     private final JLabel status = new JLabel(" ");
     private final JList<String> accounts = new JList<>();
     private final JButton refresh = new JButton("Refresh");
-    private final JButton back = new JButton("Back to Home");
 
     public FollowingView(FollowingViewModel viewModel, FollowingController controller, ViewManagerModel viewManager) {
         super(new BorderLayout(0, 8));
@@ -60,7 +58,6 @@ public final class FollowingView extends JPanel {
         accounts.setPrototypeCellValue("@username  -  Display name");
         add(new JScrollPane(accounts), BorderLayout.CENTER);
         final JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEADING));
-        actions.add(back);
         actions.add(refresh);
         add(actions, BorderLayout.SOUTH);
 
@@ -76,11 +73,10 @@ public final class FollowingView extends JPanel {
             }
         });
         refresh.addActionListener(event -> loadFollowing());
-        back.addActionListener(event -> viewManager.setState(HomeViewModel.VIEW_NAME));
         viewModel.addPropertyChangeListener(event ->
                 SwingThreads.onEdt(() -> render((FollowingState) event.getNewValue())));
 
-        // Clearing on every way out, not just Back, keeps one account's bookmarks and search away from the next
+        // Clear bookmarks and searches when leaving to keep them private across sign-ins.
         viewManager.addPropertyChangeListener(event -> SwingThreads.onEdt(() -> {
             if (viewModel.getViewName().equals(event.getNewValue())) {
                 loadFollowing();
@@ -121,6 +117,5 @@ public final class FollowingView extends JPanel {
         search.setEnabled(!busy);
         follow.setEnabled(!busy);
         refresh.setEnabled(!busy);
-        back.setEnabled(!busy);
     }
 }

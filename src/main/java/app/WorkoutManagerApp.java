@@ -108,7 +108,7 @@ public final class WorkoutManagerApp {
         views.addSignedInView(FollowingViewModel.VIEW_NAME, FollowingViewModel.TITLE,
                 new FollowingView(followingViewModel, following, viewManagerModel));
         views.addSignedInView(SettingsViewModel.VIEW_NAME, SettingsViewModel.TITLE,
-                new SettingsView(settingsViewModel, changePassword, viewManagerModel));
+                new SettingsView(settingsViewModel, changePassword));
 
         final JFrame frame = new JFrame("Workout Manager");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
