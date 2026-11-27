@@ -1,6 +1,7 @@
 package view;
 
 import interface_adapter.ViewManagerModel;
+import interface_adapter.following.FollowingViewModel;
 import interface_adapter.home.HomeState;
 import interface_adapter.home.HomeViewModel;
 import interface_adapter.logout.LogOutController;
@@ -20,7 +21,7 @@ public final class HomeView extends JPanel {
     private final JButton settings = new JButton("Settings");
     private final JButton logOut = new JButton("Log Out");
 
-    public HomeView(HomeViewModel viewModel, LogOutController controller, ViewManagerModel viewManagerModel) {
+    public HomeView(HomeViewModel viewModel, LogOutController controller, ViewManagerModel viewManager) {
         setLayout(new BoxLayout(this, BoxLayout.PAGE_AXIS));
         setBorder(new EmptyBorder(16, 20, 16, 20));
         add(new JLabel("Home"));
@@ -28,15 +29,24 @@ public final class HomeView extends JPanel {
         add(signedInAs);
         handle.setName("Handle");
         add(handle);
+        final JButton following = new JButton("Following");
+        following.addActionListener(event -> viewManager.setState(FollowingViewModel.VIEW_NAME));
+        add(following);
         add(settings);
         add(logOut);
 
         // Change Password (#22): way to get to Settings until we have the sidebar
-        settings.addActionListener(event -> viewManagerModel.setState(SettingsViewModel.VIEW_NAME));
+        settings.addActionListener(event -> viewManager.setState(SettingsViewModel.VIEW_NAME));
 
         logOut.addActionListener(event -> {
             logOut.setEnabled(false);
-            SwingThreads.inBackground(controller::logOut, () -> { }, () -> logOut.setEnabled(true));
+            following.setEnabled(false);
+            settings.setEnabled(false);
+            SwingThreads.inBackground(controller::logOut, () -> { }, () -> {
+                logOut.setEnabled(true);
+                following.setEnabled(true);
+                settings.setEnabled(true);
+            });
         });
         viewModel.addPropertyChangeListener(event ->
                 SwingThreads.onEdt(() -> render((HomeState) event.getNewValue())));

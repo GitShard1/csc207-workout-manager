@@ -15,7 +15,7 @@
 
 ### Domain
 
-A workout companion app that logs user exercises as well as having social capabilities.
+A workout companion app for planning and logging exercise, with private bookmarks for accounts you follow.
 
 ---
 
@@ -47,15 +47,15 @@ As a user, I want to see my history and personal records so I can see my own gro
 
 ### User Story 7
 
-As a user with friends, I want to send my friends friend requests to check in on each other.
+As a signed-in user, I want to follow another account by username so I can find that account again in my private Following list.
 
 ### User Story 8
 
-As a user, I want to be able to respond to friend requests so I can choose whether I want to stay in touch or not.
+*Planned.* As a user, I want to be able to respond to friend requests so I can choose whether I want to stay in touch or not.
 
 ### User Story 9
 
-As a user, I want to copy my friend's workout plans so I can do the same exercises as my friends.
+*Planned.* As a user, I want to copy my friend's workout plans so I can do the same exercises as my friends.
 
 ### User Story 10
 
@@ -171,15 +171,30 @@ The user starts a workout from a plan, records the weight and reps of each set (
 
 The user views their past workouts, newest first, and opens one to see its sets. Their profile shows total workouts and their heaviest lift for each exercise.
 
-### Send a Friend Request
+### Follow an Account
 
-The user enters another user's username. If the request is allowed, the system records it as pending and shows it in the other user's requests.
+The actor is a signed-in user. The use case starts when the user opens Following from Home.
 
-### Respond to a Friend Request
+The account appears once in the user's private Following list and is still there after signing back in.
+
+1. The system loads the user's saved accounts.
+2. The user searches for an exact username. The system shows that account's username and display name.
+3. The user chooses Follow on the displayed account. The system saves the bookmark and updates the list immediately.
+
+**Extensions**
+
+- At step 1, if the list can't be loaded, the app explains the failure and the user can retry with Refresh.
+- At step 2, an invalid or unknown username clears the search result. A failed lookup also clears the result and shows a retry message. Saved bookmarks stay visible.
+- At step 3, a self-follow is rejected. An existing follow shows “Already following” and appears only once. If the save fails, the selected account stays available for retry.
+- If the user is signed out, the app asks them to sign in and clears the displayed accounts.
+
+The bookmark is visible only to its owner and takes effect without approval or notification. Following grants no extra access to the bookmarked account's profile, plans, or workout history.
+
+### Respond to a Friend Request (Planned)
 
 The user views pending friend requests and accepts or declines each one. Accepting makes the two users friends, so they can see each other's profiles, plans and recent workouts.
 
-### Copy a Friend's Workout Plan
+### Copy a Friend's Workout Plan (Planned)
 
 The user opens a friend's profile and copies one of their plans. The system saves an independent copy to the user's own plans, named to show where it came from.
 
@@ -191,7 +206,7 @@ The user opens a friend's profile and copies one of their plans. The system save
 |-------------|--------------|
 | Jirat | User Settings & Change Password & Dashboard |
 | Demeng | Register an Account, Log In, Log Out |
-| Eric | Use Case |
+| Eric | Follow Accounts |
 | David | Find an Exercise |
 | Amgalan | Create a Workout Plan, Edit a Workout Plan |
 
@@ -259,7 +274,14 @@ Instance Attributes:
 - Date (LocalDate)
 - Exercises (List of LoggedExercise)
 
-### FriendRequest
+### Follow
+
+- Follower ID (UUID)
+- Followed ID (UUID)
+
+The pair is directional and requires two different accounts. The database stores each pair once.
+
+### FriendRequest (Planned)
 Instance Attributes:
 - FriendReqID (UUID)
 - Sender ID (UUID)
@@ -267,7 +289,7 @@ Instance Attributes:
 - Status (RequestStatus enum: PENDING, ACCEPTED, DECLINED, CANCELLED)
 - Created At (Instant)
 
-### Friendship
+### Friendship (Planned)
 Instance Attributes:
 - User A (UUID, always the smaller of the two IDs)
 - User B (UUID, always the larger of the two IDs)
@@ -281,7 +303,7 @@ Instance Attributes:
 
 **Documentation:** [Auth](https://supabase.com/docs/guides/auth/passwords), [Data REST API](https://supabase.com/docs/guides/api)
 
-**How it is used in the program:** Supabase Auth handles registering, logging in and logging out. Each user's username and display name are stored in a `profiles` table, which the app loads after the user signs in.
+Supabase Auth handles registration, login, logout, and password changes. The `profiles` table stores usernames and display names. Following uses `find_follow_profile` for an exact username lookup and `list_following` for the signed-in owner's bookmarks. The app sends only `followed_id` when it saves a follow. Supabase assigns the owner and limits reads to that owner's rows.
 
 **API Name:** WorkoutX
 
@@ -294,6 +316,8 @@ Instance Attributes:
 ## Design Diagrams
 
 ### UML Class Diagram
+
+See the [entity class diagram](docs/entity-diagram.md).
 
 ### Sequence Diagrams
 
@@ -309,6 +333,13 @@ Install JDK 25, then run this from the repository root (use `.\mvnw.cmd` on Wind
 
 You can also open `pom.xml` as a Maven project in your IDE and run `app.WorkoutManagerApp`. The app connects to the team's Supabase project, so no setup is needed.
 
+### Following demo
+
+1. Sign in, open **Following**, and search for a second account by its exact username.
+2. Select **Follow**. The account appears immediately.
+3. Select **Follow** again. The app shows **Already following** and still displays one row.
+4. Sign out, sign back in as the first account, and reopen **Following** to see the saved bookmark.
+
 ---
 
 ## Notes
@@ -317,10 +348,11 @@ You can also open `pom.xml` as a Maven project in your IDE and run `app.WorkoutM
 
 - `./mvnw test` checks style and runs the unit tests. `./mvnw verify` also writes a coverage report to `target/site/jacoco/index.html`.
 - GitHub Actions runs the same checks on pull requests and pushes to `main`.
-- To point the app at a different Supabase project, apply the [profile migration](supabase/migrations/20261123190718_account_profiles.sql), then set both `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`.
+- To point the app at a different Supabase project, apply the [profile migration](supabase/migrations/20261123190718_account_profiles.sql) first and the [Following migration](supabase/migrations/20261124190842_follow_accounts.sql) second. Set both `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`.
+- Following's unit tests use an in-memory DAO. Its HTTP tests use a loopback server. The [SQL privacy suite](supabase/tests/following_privacy.sql) checks ownership and database constraints in a migrated test project.
 
 ### Using the signed-in user
 
 - Interactors that need the signed-in user depend on `use_case.account.CurrentUserDataAccessInterface`, which `InMemorySessionStore` implements.
-- Supabase DAOs send `InMemorySessionStore.accessToken()` as the bearer token so row-level security applies.
+- Supabase DAOs send the session token as the bearer token so row-level security applies. Following uses `InMemorySessionStore.accessTokenFor(viewerId)` to bind each request to the account the interactor checked.
 - A new screen gets a view model extending `interface_adapter.ViewModel` and is registered with `ViewManager.addView`. Presenters open it by setting `ViewManagerModel`'s state to its view name.
