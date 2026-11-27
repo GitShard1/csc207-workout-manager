@@ -8,6 +8,7 @@ import interface_adapter.edit_plan.EditPlanPresenter;
 import interface_adapter.home.HomeViewModel;
 import interface_adapter.open_plan.OpenPlanController;
 import interface_adapter.open_plan.OpenPlanPresenter;
+import interface_adapter.plan_editor.PlanEditorState;
 import interface_adapter.plan_editor.PlanEditorViewModel;
 import org.junit.jupiter.api.Test;
 import use_case.create_plan.CreatePlanInputData;
@@ -243,6 +244,7 @@ class PlanEditorViewTest {
         });
 
         assertEquals(HomeViewModel.VIEW_NAME, viewManagerModel.getState());
+        assertEquals(PlanEditorState.empty(), viewModel.getState());
         onEdt(() -> assertEquals("", field(view, "Plan name").getText()));
     }
 
@@ -256,6 +258,51 @@ class PlanEditorViewTest {
 
         assertEquals(0, discardAsked);
         assertEquals(HomeViewModel.VIEW_NAME, viewManagerModel.getState());
+        assertTrue(viewModel.getState().isNewPlan());
+        onEdt(() -> {
+            assertEquals("", field(view, "Plan name").getText());
+            assertEquals(0, table(view).getModel().getRowCount());
+        });
+    }
+
+    @Test
+    void createAfterCancellingAnEditIsBlankTest() throws Exception {
+        buildAndLoad();
+        onEdt(() -> button(view, "Cancel").doClick(0));
+        viewManagerModel.setState(PlanEditorViewModel.VIEW_NAME);
+
+        onEdt(() -> {
+            assertTrue(hasLabel(view, "New plan"));
+            assertEquals("", field(view, "Plan name").getText());
+            assertEquals(0, table(view).getModel().getRowCount());
+            field(view, "Plan name").setText("Leg Day");
+            button(view, "Save plan").doClick(0);
+        });
+
+        await(() -> button(view, "Save plan").isEnabled());
+
+        assertNotNull(created);
+        assertEquals("Leg Day", created.name());
+        assertNull(editPlan.lastInput);
+    }
+
+    @Test
+    void cancelClearsAnErrorTest() throws Exception {
+        editPlan.response = input -> editPresenter.prepareFailView("Plan name is required.");
+        buildAndLoad();
+        onEdt(() -> {
+            field(view, "Plan name").setText("");
+            button(view, "Save plan").doClick(0);
+        });
+
+        await(() -> button(view, "Save plan").isEnabled());
+
+        onEdt(() -> assertEquals("Error: Plan name is required.", label(view, "Plan editor status").getText()));
+
+        onEdt(() -> button(view, "Cancel").doClick(0));
+
+        onEdt(() -> assertEquals(" ", label(view, "Plan editor status").getText()));
+        assertNull(viewModel.getState().error());
     }
 
     private void build() throws Exception {

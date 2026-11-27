@@ -228,15 +228,10 @@ public class PlanEditorView extends JPanel {
 
     private void cancel() {
         final boolean typedSomething = !nameField.getText().isBlank() || exerciseTableModel.getRowCount() > 0;
-        if (viewModel.getState().isNewPlan() && typedSomething) {
-            if (!confirmDiscard()) {
-                return;
-            }
-            nameField.setText("");
-            exerciseTableModel.setRowCount(0);
-            renumberRows();
-            status.setText(" ");
+        if (viewModel.getState().isNewPlan() && typedSomething && !confirmDiscard()) {
+            return;
         }
+        viewModel.setState(PlanEditorState.empty());
         viewManagerModel.setState(HomeViewModel.VIEW_NAME);
     }
 
