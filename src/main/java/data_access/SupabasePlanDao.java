@@ -5,6 +5,8 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import entity.WorkoutPlan;
 import use_case.create_plan.CreatePlanDataAccessInterface;
+import use_case.delete_plan.DeletePlanDataAccessInterface;
+import use_case.edit_plan.EditPlanDataAccessInterface;
 import use_case.open_plan.OpenPlanDataAccessInterface;
 import use_case.plan_common.PlanStorageUnavailableException;
 
@@ -16,7 +18,8 @@ import static data_access.SupabaseJson.object;
 import static data_access.SupabaseJson.parse;
 
 /** Stores plans in the {@code workout_plans} table, one row per plan with its exercises copied into it. */
-public final class SupabasePlanDao implements CreatePlanDataAccessInterface, OpenPlanDataAccessInterface {
+public final class SupabasePlanDao implements CreatePlanDataAccessInterface, OpenPlanDataAccessInterface,
+        EditPlanDataAccessInterface, DeletePlanDataAccessInterface {
     private static final String COLUMNS = "id,owner_id,name,exercises,workout_completed,is_preset,copied_from_user_id";
 
     private final SupabaseClient client;
@@ -42,8 +45,7 @@ public final class SupabasePlanDao implements CreatePlanDataAccessInterface, Ope
         }
         try {
             return PlanJson.planFromRow(object(plans.get(0)));
-        }
-        catch (IllegalArgumentException exception) {
+        } catch (IllegalArgumentException exception) {
             throw new PlanStorageUnavailableException("A stored plan could not be read.", exception);
         }
     }
@@ -79,6 +81,33 @@ public final class SupabasePlanDao implements CreatePlanDataAccessInterface, Ope
         }
     }
 
+    @Override
+    public void update(WorkoutPlan workoutPlan) throws PlanStorageUnavailableException {
+        final String token = session.accessTokenFor(workoutPlan.getUserOwnerID())
+                .orElseThrow(SupabasePlanDao::noSession);
+        final JsonObject body = new JsonObject();
+        body.addProperty("name", workoutPlan.getName());
+        body.add("exercises", PlanJson.exercisesToJson(workoutPlan.getExercises()));
+        body.addProperty("workout_completed", workoutPlan.isWorkoutCompleted());
+        final String path = "/rest/v1/workout_plans?id=eq." + workoutPlan.getWorkoutPlanID() + "&select=id";
+        final HttpResponse<String> response = send(() -> client.patch(path, body, token));
+        final JsonElement changedRows = parse(response.body());
+        if (response.statusCode() != 200 || changedRows == null || !changedRows.isJsonArray()
+                || changedRows.getAsJsonArray().size() != 1) {
+            throw new PlanStorageUnavailableException("The plan could not be updated.", null);
+        }
+    }
+
+    @Override
+    public void delete(UUID planId) throws PlanStorageUnavailableException {
+        final String token = session.accessToken().orElseThrow(SupabasePlanDao::noSession);
+        final String path = "/rest/v1/workout_plans?id=eq." + planId;
+        final HttpResponse<String> response = send(() -> client.delete(path, token));
+        if (response.statusCode() != 204) {
+            throw new PlanStorageUnavailableException("The plan could not be deleted.", null);
+        }
+    }
+
     private interface SupabaseRequest {
         HttpResponse<String> send() throws IOException, InterruptedException;
     }
@@ -86,12 +115,10 @@ public final class SupabasePlanDao implements CreatePlanDataAccessInterface, Ope
     private static HttpResponse<String> send(SupabaseRequest request) throws PlanStorageUnavailableException {
         try {
             return request.send();
-        }
-        catch (InterruptedException exception) {
+        } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new PlanStorageUnavailableException("Plans could not be reached.", exception);
-        }
-        catch (IOException exception) {
+        } catch (IOException exception) {
             throw new PlanStorageUnavailableException("Plans could not be reached.", exception);
         }
     }

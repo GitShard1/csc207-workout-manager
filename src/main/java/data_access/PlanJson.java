@@ -68,8 +68,7 @@ final class PlanJson {
         final BodyPart bodyPart;
         try {
             bodyPart = BodyPart.valueOf(requiredString(json, "body_part"));
-        }
-        catch (IllegalArgumentException exception) {
+        } catch (IllegalArgumentException exception) {
             throw new IllegalArgumentException("body_part is not a known body part.", exception);
         }
         final Exercise exercise = new Exercise(requiredString(json, "exercise_id"), requiredString(json, "name"),
@@ -114,8 +113,7 @@ final class PlanJson {
     private static UUID toUuid(String value, String property) {
         try {
             return UUID.fromString(value);
-        }
-        catch (IllegalArgumentException exception) {
+        } catch (IllegalArgumentException exception) {
             throw new IllegalArgumentException(property + " must be a UUID.", exception);
         }
     }
@@ -135,8 +133,7 @@ final class PlanJson {
         }
         try {
             return value.getAsBigDecimal().intValueExact();
-        }
-        catch (ArithmeticException exception) {
+        } catch (ArithmeticException exception) {
             throw new IllegalArgumentException(property + " must be an integer.", exception);
         }
     }

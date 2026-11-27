@@ -58,7 +58,7 @@ final class SupabasePlanDaoTest {
     }
 
     @Test
-    void saveSendsOneRowTest() throws Exception {
+    void savesThePlanAsOneRowWithItsExercisesCopiedIn() throws Exception {
         server.enqueue(201, "");
 
         dao.save(PUSH_DAY);
@@ -94,14 +94,14 @@ final class SupabasePlanDaoTest {
     }
 
     @Test
-    void saveFailureThrowsTest() {
+    void aRejectedSaveBecomesAStorageFailure() {
         server.enqueue(409, "{\"code\":\"23505\"}");
 
         assertThrows(PlanStorageUnavailableException.class, () -> dao.save(PUSH_DAY));
     }
 
     @Test
-    void saveWithoutSessionThrowsTest() throws Exception {
+    void refusesToSaveWithoutASignedInSession() throws Exception {
         sessions.endCurrentSession();
 
         assertThrows(PlanStorageUnavailableException.class, () -> dao.save(PUSH_DAY));
@@ -109,7 +109,7 @@ final class SupabasePlanDaoTest {
     }
 
     @Test
-    void roundTripTest() throws Exception {
+    void aSavedPlanReadsBackUnchanged() throws Exception {
         server.enqueue(201, "");
         dao.save(PUSH_DAY);
         final JsonObject row = JsonParser.parseString(server.takeCall().body()).getAsJsonObject();
@@ -145,7 +145,7 @@ final class SupabasePlanDaoTest {
     }
 
     @Test
-    void getByIdRequestTest() throws Exception {
+    void looksUpOnePlanByIdWithTheSessionToken() throws Exception {
         server.enqueue(200, "[]");
 
         assertNull(dao.getById(PUSH_DAY.getWorkoutPlanID()));
@@ -157,7 +157,7 @@ final class SupabasePlanDaoTest {
     }
 
     @Test
-    void getByIdMissingListsBecomeEmptyTest() throws Exception {
+    void readsMissingMuscleAndInstructionListsAsEmpty() throws Exception {
         server.enqueue(200, "[" + row("\"" + PUSH_DAY.getWorkoutPlanID() + "\"", "[" + BASIC_EXERCISE + "]") + "]");
 
         final Exercise exercise = dao.getById(PUSH_DAY.getWorkoutPlanID()).getExercises().get(0).getExercise();
@@ -167,21 +167,21 @@ final class SupabasePlanDaoTest {
     }
 
     @Test
-    void getByIdServerErrorThrowsTest() {
+    void aServerErrorWhileLoadingBecomesAStorageFailure() {
         server.enqueue(500, "");
 
         assertThrows(PlanStorageUnavailableException.class, () -> dao.getById(PUSH_DAY.getWorkoutPlanID()));
     }
 
     @Test
-    void getByIdMalformedRowThrowsTest() {
+    void refusesAPlanRowWithABadId() {
         server.enqueue(200, "[" + row("\"not-a-uuid\"", "[" + BASIC_EXERCISE + "]") + "]");
 
         assertThrows(PlanStorageUnavailableException.class, () -> dao.getById(PUSH_DAY.getWorkoutPlanID()));
     }
 
     @Test
-    void getByIdUnknownBodyPartThrowsTest() {
+    void refusesAnExerciseWithAnUnknownBodyPart() {
         server.enqueue(200, "[" + row("\"" + PUSH_DAY.getWorkoutPlanID() + "\"",
                 "[" + BASIC_EXERCISE.replace("CHEST", "ELBOWS") + "]") + "]");
 
@@ -189,7 +189,7 @@ final class SupabasePlanDaoTest {
     }
 
     @Test
-    void existsByNameTest() throws Exception {
+    void checksWhetherTheAccountAlreadyUsesAPlanName() throws Exception {
         server.enqueue(200, "true");
 
         assertTrue(dao.existsByName(OWNER_ID, "Push Day"));
@@ -206,15 +206,88 @@ final class SupabasePlanDaoTest {
     }
 
     @Test
-    void existsByNameFailureThrowsTest() {
+    void aFailedNameCheckBecomesAStorageFailure() {
         server.enqueue(401, "{\"message\":\"JWT expired\"}");
 
         assertThrows(PlanStorageUnavailableException.class, () -> dao.existsByName(OWNER_ID, "Push Day"));
     }
 
     @Test
-    void existsByNameForAnotherAccountThrowsTest() throws Exception {
+    void refusesToCheckNamesForAnotherAccount() throws Exception {
         assertThrows(PlanStorageUnavailableException.class, () -> dao.existsByName(UUID.randomUUID(), "Push Day"));
+        assertNull(server.unexpectedCall());
+    }
+
+    @Test
+    void updatesOnlyTheEditableColumns() throws Exception {
+        server.enqueue(200, "[{\"id\":\"" + PUSH_DAY.getWorkoutPlanID() + "\"}]");
+
+        dao.update(PUSH_DAY);
+
+        final LoopbackSupabase.Call call = server.takeCall();
+        assertEquals("PATCH", call.method());
+        assertEquals("/rest/v1/workout_plans?id=eq." + PUSH_DAY.getWorkoutPlanID() + "&select=id", call.path());
+        assertEquals("Bearer owner.token", call.authorization());
+        assertEquals("application/json", call.contentType());
+        assertEquals("return=representation", call.prefer());
+
+        final JsonObject body = JsonParser.parseString(call.body()).getAsJsonObject();
+        assertEquals(3, body.size());
+        assertEquals("Push Day", body.get("name").getAsString());
+        assertFalse(body.get("workout_completed").getAsBoolean());
+        assertEquals(2, body.getAsJsonArray("exercises").size());
+        assertFalse(body.has("id"));
+        assertFalse(body.has("owner_id"));
+        assertFalse(body.has("is_preset"));
+        assertFalse(body.has("copied_from_user_id"));
+    }
+
+    @Test
+    void anUpdateThatChangesNoRowIsAStorageFailure() {
+        server.enqueue(200, "[]");
+
+        assertThrows(PlanStorageUnavailableException.class, () -> dao.update(PUSH_DAY));
+    }
+
+    @Test
+    void aRejectedUpdateBecomesAStorageFailure() {
+        server.enqueue(400, "{\"code\":\"23514\"}");
+
+        assertThrows(PlanStorageUnavailableException.class, () -> dao.update(PUSH_DAY));
+    }
+
+    @Test
+    void refusesToUpdateWithoutASignedInSession() throws Exception {
+        sessions.endCurrentSession();
+
+        assertThrows(PlanStorageUnavailableException.class, () -> dao.update(PUSH_DAY));
+        assertNull(server.unexpectedCall());
+    }
+
+    @Test
+    void deletesThePlanById() throws Exception {
+        server.enqueue(204, "");
+
+        dao.delete(PUSH_DAY.getWorkoutPlanID());
+
+        final LoopbackSupabase.Call call = server.takeCall();
+        assertEquals("DELETE", call.method());
+        assertEquals("/rest/v1/workout_plans?id=eq." + PUSH_DAY.getWorkoutPlanID(), call.path());
+        assertEquals("Bearer owner.token", call.authorization());
+    }
+
+    @Test
+    void aFailedDeleteBecomesAStorageFailure() {
+        server.enqueue(500, "");
+
+        assertThrows(PlanStorageUnavailableException.class, () -> dao.delete(PUSH_DAY.getWorkoutPlanID()));
+    }
+
+    @Test
+    void refusesToDeleteWithoutASignedInSession() throws Exception {
+        sessions.endCurrentSession();
+
+        assertThrows(PlanStorageUnavailableException.class, () -> dao.delete(PUSH_DAY.getWorkoutPlanID()));
         assertNull(server.unexpectedCall());
     }
 
