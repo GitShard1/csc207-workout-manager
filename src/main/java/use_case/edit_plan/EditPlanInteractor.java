@@ -69,8 +69,8 @@ public class EditPlanInteractor implements EditPlanInputBoundary {
         }
 
         final WorkoutPlan editedWorkoutPlan = new WorkoutPlan(targetPlan.getWorkoutPlanID(), name,
-                targetPlan.getUserOwnerID(), builtExercises.exercises(), targetPlan.isWorkoutCompleted(), false,
-                targetPlan.getCopiedFromUserID());
+                targetPlan.getUserOwnerID(), builtExercises.exercises(), targetPlan.isWorkoutCompleted(),
+                targetPlan.isPreset(), targetPlan.getCopiedFromUserID());
 
         try {
             dataAccess.update(editedWorkoutPlan);
