@@ -1,7 +1,6 @@
 package interface_adapter.edit_plan;
 
 import interface_adapter.ViewManagerModel;
-import interface_adapter.home.HomeViewModel;
 import interface_adapter.plan_editor.PlanEditorState;
 import interface_adapter.plan_editor.PlanEditorViewModel;
 import use_case.edit_plan.EditPlanOutputBoundary;
@@ -28,12 +27,6 @@ public class EditPlanPresenter implements EditPlanOutputBoundary {
 
         viewModel.setState(new PlanEditorState(outputData.planId(), outputData.name(), exerciseRows, null));
         viewManagerModel.setState(PlanEditorViewModel.VIEW_NAME);
-    }
-
-    @Override
-    public void prepareDeleteSuccessView() {
-        viewModel.setState(PlanEditorState.empty());
-        viewManagerModel.setState(HomeViewModel.VIEW_NAME);
     }
 
     @Override

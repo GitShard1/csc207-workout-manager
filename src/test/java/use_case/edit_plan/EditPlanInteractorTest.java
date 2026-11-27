@@ -18,7 +18,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -114,15 +113,6 @@ class EditPlanInteractorTest {
     }
 
     @Test
-    void deleteRemovesThePlanTest() {
-        interactor().deletePlan(pushDay.getWorkoutPlanID());
-
-        assertEquals(pushDay.getWorkoutPlanID(), planDataAccessObject.deletedId);
-        assertTrue(presenter.deleted);
-        assertNull(presenter.error);
-    }
-
-    @Test
     void failureEmptyNameTest() {
         save(pushDay.getWorkoutPlanID(), "", List.of(entry("0025", 3, 8, 60.0)));
 
@@ -184,10 +174,10 @@ class EditPlanInteractorTest {
 
     @Test
     void failurePlanNotFoundTest() {
-        interactor().deletePlan(UUID.randomUUID());
+        save(UUID.randomUUID(), "Push Day", List.of(entry("0025", 3, 8, 60.0)));
 
         assertEquals("Plan not found.", presenter.error);
-        assertNull(planDataAccessObject.deletedId);
+        assertNull(planDataAccessObject.updated);
     }
 
     @Test
@@ -196,10 +186,10 @@ class EditPlanInteractorTest {
                 List.of(new PlannedExercise(SQUAT, 3, 10, null)), false, true, null);
         planDataAccessObject.plans.put(starterPlan.getWorkoutPlanID(), starterPlan);
 
-        interactor().deletePlan(starterPlan.getWorkoutPlanID());
+        save(starterPlan.getWorkoutPlanID(), "Push Day", List.of(entry("0025", 3, 8, 60.0)));
 
         assertEquals("Starter plans can't be edited.", presenter.error);
-        assertNull(planDataAccessObject.deletedId);
+        assertNull(planDataAccessObject.updated);
     }
 
     @Test
@@ -212,7 +202,6 @@ class EditPlanInteractorTest {
 
         assertEquals("You can only edit your own plans.", presenter.error);
         assertNull(planDataAccessObject.updated);
-        assertFalse(presenter.deleted);
     }
 
     @Test
@@ -256,27 +245,14 @@ class EditPlanInteractorTest {
         assertNull(presenter.success);
     }
 
-    @Test
-    void failureDeleteFailsTest() {
-        planDataAccessObject.failDelete = true;
-
-        interactor().deletePlan(pushDay.getWorkoutPlanID());
-
-        assertEquals("Your plan wasn't deleted. Please try again.", presenter.error);
-        assertNull(planDataAccessObject.deletedId);
-        assertFalse(presenter.deleted);
-    }
-
-    /** Stands in for plan storage. Remembers what was updated or deleted. */
+    /** Stands in for plan storage. Remembers what was updated. */
     private static class FakePlanDataAccessObject implements EditPlanDataAccessInterface {
         private final Map<UUID, WorkoutPlan> plans = new HashMap<>();
         private final List<String> takenNames = new ArrayList<>();
         private WorkoutPlan updated;
-        private UUID deletedId;
         private boolean failGetById;
         private boolean failExistsByName;
         private boolean failUpdate;
-        private boolean failDelete;
 
         @Override
         public WorkoutPlan getById(UUID planId) throws PlanStorageUnavailableException {
@@ -301,30 +277,16 @@ class EditPlanInteractorTest {
             }
             updated = workoutPlan;
         }
-
-        @Override
-        public void delete(UUID planId) throws PlanStorageUnavailableException {
-            if (failDelete) {
-                throw new PlanStorageUnavailableException("offline", null);
-            }
-            deletedId = planId;
-        }
     }
 
     /** Remembers which view the interactor asked for. */
     private static class RecordingPresenter implements EditPlanOutputBoundary {
         private EditPlanOutputData success;
-        private boolean deleted;
         private String error;
 
         @Override
         public void prepareSuccessView(EditPlanOutputData outputData) {
             success = outputData;
-        }
-
-        @Override
-        public void prepareDeleteSuccessView() {
-            deleted = true;
         }
 
         @Override

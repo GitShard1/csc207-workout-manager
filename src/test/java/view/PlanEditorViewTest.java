@@ -32,7 +32,6 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -57,7 +56,6 @@ class PlanEditorViewTest {
     private final EditPlanController editController = new EditPlanController(editPlan);
 
     private volatile CreatePlanInputData created;
-    private boolean deleteConfirmed;
     private boolean discardConfirmed;
     private int discardAsked;
     private PlanEditorView view;
@@ -79,7 +77,7 @@ class PlanEditorViewTest {
             assertEquals("Barbell Squat", table(view).getModel().getValueAt(1, NAME_COLUMN));
             assertEquals(5, table(view).getModel().getValueAt(1, SETS_COLUMN));
             assertEquals(100.0, table(view).getModel().getValueAt(1, WEIGHT_COLUMN));
-            assertTrue(button(view, "Delete plan").isVisible());
+            assertNull(findOrNull(view, JButton.class, button -> "Delete plan".equals(button.getText())));
         });
         assertEquals(PLAN_ID, editPlan.lastLoadedId);
         assertEquals(PlanEditorViewModel.VIEW_NAME, viewManagerModel.getState());
@@ -172,35 +170,11 @@ class PlanEditorViewTest {
     }
 
     @Test
-    void deleteNeedsConfirmationTest() throws Exception {
-        buildAndLoad();
-        deleteConfirmed = false;
-        onEdt(() -> button(view, "Delete plan").doClick(0));
-
-        await(() -> button(view, "Delete plan").isEnabled());
-
-        assertNull(editPlan.lastDeletedId);
-        assertEquals(PlanEditorViewModel.VIEW_NAME, viewManagerModel.getState());
-    }
-
-    @Test
-    void confirmedDeleteGoesHomeTest() throws Exception {
-        buildAndLoad();
-        deleteConfirmed = true;
-        onEdt(() -> button(view, "Delete plan").doClick(0));
-
-        await(() -> button(view, "Delete plan").isEnabled());
-
-        assertEquals(PLAN_ID, editPlan.lastDeletedId);
-        assertEquals(HomeViewModel.VIEW_NAME, viewManagerModel.getState());
-    }
-
-    @Test
     void newPlanUsesCreateTest() throws Exception {
         build();
         onEdt(() -> {
             assertTrue(hasLabel(view, "New plan"));
-            assertFalse(button(view, "Delete plan").isVisible());
+            assertNull(findOrNull(view, JButton.class, button -> "Delete plan".equals(button.getText())));
             assertEquals("Exercises (0)", label(view, "Exercises heading").getText());
             field(view, "Plan name").setText("Leg Day");
             button(view, "Save plan").doClick(0);
@@ -282,11 +256,6 @@ class PlanEditorViewTest {
         });
         onEdt(() -> view = new PlanEditorView(viewModel, createController, editController, viewManagerModel) {
             @Override
-            boolean confirmDelete(String planName) {
-                return deleteConfirmed;
-            }
-
-            @Override
             boolean confirmDiscard() {
                 discardAsked++;
                 return discardConfirmed;
@@ -299,12 +268,11 @@ class PlanEditorViewTest {
         onEdt(() -> editController.loadPlan(PLAN_ID));
     }
 
-    /** Answers loads, saves and deletes the way the real use case would, without a data store. */
+    /** Answers loads and saves the way the real use case would, without a data store. */
     private static class ScriptedEditPlan implements EditPlanInputBoundary {
         private final EditPlanPresenter presenter;
         private volatile EditPlanInputData lastInput;
         private volatile UUID lastLoadedId;
-        private volatile UUID lastDeletedId;
         private volatile Consumer<EditPlanInputData> response;
 
         ScriptedEditPlan(EditPlanPresenter presenter) {
@@ -322,12 +290,6 @@ class PlanEditorViewTest {
         public void execute(EditPlanInputData inputData) {
             lastInput = inputData;
             response.accept(inputData);
-        }
-
-        @Override
-        public void deletePlan(UUID planId) {
-            lastDeletedId = planId;
-            presenter.prepareDeleteSuccessView();
         }
 
         private void saveSucceeds(EditPlanInputData inputData) {

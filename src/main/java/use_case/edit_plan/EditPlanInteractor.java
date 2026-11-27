@@ -98,24 +98,6 @@ public class EditPlanInteractor implements EditPlanInputBoundary {
         presenter.prepareSuccessView(toOutputData(editedWorkoutPlan));
     }
 
-    @Override
-    public void deletePlan(UUID planId) {
-        final WorkoutPlan targetPlan = findEditablePlan(planId);
-        if (targetPlan == null) {
-            return;
-        }
-
-        try {
-            dataAccess.delete(targetPlan.getWorkoutPlanID());
-        }
-        catch (PlanStorageUnavailableException exception) {
-            presenter.prepareFailView("Your plan wasn't deleted. Please try again.");
-            return;
-        }
-
-        presenter.prepareDeleteSuccessView();
-    }
-
     /**
      Returns the plan if the logged-in user can change it. Otherwise reports why and returns null.
      */

@@ -7,7 +7,4 @@ public interface EditPlanInputBoundary {
     void loadPlan(UUID planId);
 
     void execute(EditPlanInputData inputData);
-
-    /** Removes the plan from the user's list. The caller is expected to have asked the user to confirm. */
-    void deletePlan(UUID planId);
 }

@@ -41,8 +41,4 @@ public class EditPlanController {
 
         interactor.execute(inputData);
     }
-
-    public void deletePlan(UUID planId) {
-        interactor.deletePlan(planId);
-    }
 }

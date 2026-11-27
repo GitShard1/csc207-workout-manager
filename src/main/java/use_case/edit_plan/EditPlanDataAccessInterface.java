@@ -17,10 +17,4 @@ public interface EditPlanDataAccessInterface {
 
     /** Replaces the stored plan with the same ID. Throws PlanStorageUnavailableException if it could not be saved. */
     void update(WorkoutPlan workoutPlan) throws PlanStorageUnavailableException;
-
-    /**
-     * Removes the plan with this ID. Workouts already logged from it are not changed.
-     * Throws PlanStorageUnavailableException if it could not be removed.
-     */
-    void delete(UUID planId) throws PlanStorageUnavailableException;
 }

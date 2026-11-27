@@ -13,7 +13,6 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class EditPlanPresenterTest {
     private final PlanEditorViewModel planEditorViewModel = new PlanEditorViewModel();
@@ -59,17 +58,6 @@ class EditPlanPresenterTest {
     }
 
     @Test
-    void deleteClearsTheEditorTest() {
-        presenter.prepareSuccessView(pushDay);
-        presenter.prepareDeleteSuccessView();
-
-        assertTrue(planEditorViewModel.getState().isNewPlan());
-        assertEquals("", planEditorViewModel.getState().name());
-        assertTrue(planEditorViewModel.getState().exercises().isEmpty());
-        assertEquals(HomeViewModel.VIEW_NAME, viewManagerModel.getState());
-    }
-
-    @Test
     void failStaysOnTheSameScreenTest() {
         viewManagerModel.setState(PlanEditorViewModel.VIEW_NAME);
         presenter.prepareFailView("Plan not found.");
@@ -84,8 +72,7 @@ class EditPlanPresenterTest {
 
         presenter.prepareSuccessView(pushDay);
         presenter.prepareFailView("Plan not found.");
-        presenter.prepareDeleteSuccessView();
 
-        assertEquals(3, notifications[0]);
+        assertEquals(2, notifications[0]);
     }
 }

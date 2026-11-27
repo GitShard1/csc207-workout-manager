@@ -35,19 +35,15 @@ class EditPlanControllerTest {
     }
 
     @Test
-    void loadAndDeletePassThePlanIdTest() {
+    void loadPassesThePlanIdTest() {
         controller.loadPlan(planId);
         assertEquals(planId, interactor.loadedId);
-
-        controller.deletePlan(planId);
-        assertEquals(planId, interactor.deletedId);
     }
 
     /** Remembers what the controller sent. */
     private static class RecordingInteractor implements EditPlanInputBoundary {
         private EditPlanInputData inputData;
         private UUID loadedId;
-        private UUID deletedId;
 
         @Override
         public void loadPlan(UUID planId) {
@@ -57,11 +53,6 @@ class EditPlanControllerTest {
         @Override
         public void execute(EditPlanInputData inputData) {
             this.inputData = inputData;
-        }
-
-        @Override
-        public void deletePlan(UUID planId) {
-            deletedId = planId;
         }
     }
 }

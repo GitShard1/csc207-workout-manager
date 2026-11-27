@@ -28,7 +28,7 @@ import java.awt.Insets;
 import java.util.ArrayList;
 import java.util.UUID;
 
-/** The View for the plan editor. Used to create a new plan, or to change or delete an existing one. */
+/** The View for the plan editor. Used to create a new plan, or to change an existing one. */
 public class PlanEditorView extends JPanel {
     private static final int NUMBER_COLUMN = 0;
     private static final int SETS_COLUMN = 2;
@@ -67,7 +67,6 @@ public class PlanEditorView extends JPanel {
     private final JButton moveUpButton = new JButton("Move up");
     private final JButton moveDownButton = new JButton("Move down");
     private final JLabel status = new JLabel(" ");
-    private final JButton deleteButton = new JButton("Delete plan");
     private final JButton cancelButton = new JButton("Cancel");
     private final JButton saveButton = new JButton("Save plan");
 
@@ -156,7 +155,6 @@ public class PlanEditorView extends JPanel {
         bottom.add(status, BorderLayout.CENTER);
 
         final JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        actions.add(deleteButton);
         actions.add(cancelButton);
         actions.add(saveButton);
         bottom.add(actions, BorderLayout.EAST);
@@ -189,12 +187,6 @@ public class PlanEditorView extends JPanel {
             }
         });
         saveButton.addActionListener(event -> savePlan());
-        deleteButton.addActionListener(event -> {
-            final UUID planId = viewModel.getState().planId();
-            if (planId != null && confirmDelete(nameField.getText())) {
-                run("Deleting plan...", () -> editPlanController.deletePlan(planId));
-            }
-        });
         cancelButton.addActionListener(event -> cancel());
     }
 
@@ -248,12 +240,6 @@ public class PlanEditorView extends JPanel {
         viewManagerModel.setState(HomeViewModel.VIEW_NAME);
     }
 
-    boolean confirmDelete(String planName) {
-        return JOptionPane.showConfirmDialog(this,
-                "Delete \"" + planName + "\"? Workouts you already logged from it are kept.",
-                "Delete plan", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE) == JOptionPane.YES_OPTION;
-    }
-
     boolean confirmDiscard() {
         return JOptionPane.showConfirmDialog(this, "Discard this plan? It hasn't been saved.", "Discard plan",
                 JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE) == JOptionPane.YES_OPTION;
@@ -261,7 +247,6 @@ public class PlanEditorView extends JPanel {
 
     private void render(PlanEditorState state) {
         title.setText(state.isNewPlan() ? "New plan" : "Edit plan");
-        deleteButton.setVisible(!state.isNewPlan());
 
         if (state.error() != null) {
             status.setText("Error: " + state.error());
@@ -299,7 +284,6 @@ public class PlanEditorView extends JPanel {
         removeButton.setEnabled(!busy);
         moveUpButton.setEnabled(!busy);
         moveDownButton.setEnabled(!busy);
-        deleteButton.setEnabled(!busy);
         cancelButton.setEnabled(!busy);
         saveButton.setEnabled(!busy);
     }
