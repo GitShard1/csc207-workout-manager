@@ -162,6 +162,7 @@ As a user, I want to change my password and other account settings so that my ac
 - At step 1, if the plan can't be found, is a starter plan, or belongs to another user, the system says it can't be edited and nothing changes.
 - At step 2, the user can delete the whole plan instead. After the user confirms, the system removes it from their plans and keeps the workouts already logged from it.
 - At step 3, if the plan has no name, a name over 50 characters, the same name as another of the user's plans, no exercises, or an exercise with fewer than 1 set or rep or a negative weight, the system explains what is wrong and keeps what the user typed.
+- At any step, if the user's plans can't be reached or a change can't be saved, the system says so, nothing changes, and the user can try again.
 
 ### Log a Workout
 

@@ -8,6 +8,7 @@ import entity.WorkoutPlan;
 import org.junit.jupiter.api.Test;
 import use_case.account.CurrentUserDataAccessInterface;
 import use_case.plan_common.ExerciseLookupDataAccessInterface;
+import use_case.plan_common.PlanStorageUnavailableException;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -18,6 +19,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -213,30 +215,98 @@ class EditPlanInteractorTest {
         assertFalse(presenter.deleted);
     }
 
+    @Test
+    void failureStorageDownWhenLoadingTest() {
+        planDataAccessObject.failGetById = true;
+
+        interactor().loadPlan(pushDay.getWorkoutPlanID());
+
+        assertEquals("Couldn't reach your plans right now. Please try again.", presenter.error);
+        assertNull(presenter.success);
+    }
+
+    @Test
+    void failureStorageDownWhenCheckingNameTest() {
+        planDataAccessObject.failExistsByName = true;
+
+        save(pushDay.getWorkoutPlanID(), "Full Body", List.of(entry("0025", 3, 8, 60.0)));
+
+        assertEquals("Your changes weren't saved. Please try again.", presenter.error);
+        assertNull(planDataAccessObject.updated);
+    }
+
+    @Test
+    void keepingTheSameNameSkipsTheNameCheckTest() {
+        planDataAccessObject.failExistsByName = true;
+
+        save(pushDay.getWorkoutPlanID(), "Push Day", List.of(entry("0025", 4, 8, 60.0)));
+
+        assertNotNull(planDataAccessObject.updated);
+        assertNull(presenter.error);
+    }
+
+    @Test
+    void failureUpdateFailsTest() {
+        planDataAccessObject.failUpdate = true;
+
+        save(pushDay.getWorkoutPlanID(), "Push Day", List.of(entry("0025", 4, 8, 60.0)));
+
+        assertEquals("Your changes weren't saved. Please try again.", presenter.error);
+        assertNull(planDataAccessObject.updated);
+        assertNull(presenter.success);
+    }
+
+    @Test
+    void failureDeleteFailsTest() {
+        planDataAccessObject.failDelete = true;
+
+        interactor().deletePlan(pushDay.getWorkoutPlanID());
+
+        assertEquals("Your plan wasn't deleted. Please try again.", presenter.error);
+        assertNull(planDataAccessObject.deletedId);
+        assertFalse(presenter.deleted);
+    }
+
     /** Stands in for plan storage. Remembers what was updated or deleted. */
     private static class FakePlanDataAccessObject implements EditPlanDataAccessInterface {
         private final Map<UUID, WorkoutPlan> plans = new HashMap<>();
         private final List<String> takenNames = new ArrayList<>();
         private WorkoutPlan updated;
         private UUID deletedId;
+        private boolean failGetById;
+        private boolean failExistsByName;
+        private boolean failUpdate;
+        private boolean failDelete;
 
         @Override
-        public WorkoutPlan getById(UUID planId) {
+        public WorkoutPlan getById(UUID planId) throws PlanStorageUnavailableException {
+            if (failGetById) {
+                throw new PlanStorageUnavailableException("offline", null);
+            }
             return plans.get(planId);
         }
 
         @Override
-        public boolean existsByName(UUID ownerId, String planName) {
+        public boolean existsByName(UUID ownerId, String planName) throws PlanStorageUnavailableException {
+            if (failExistsByName) {
+                throw new PlanStorageUnavailableException("offline", null);
+            }
             return takenNames.contains(planName.toLowerCase());
         }
 
         @Override
-        public void update(WorkoutPlan workoutPlan) {
+        public void update(WorkoutPlan workoutPlan) throws PlanStorageUnavailableException {
+            if (failUpdate) {
+                throw new PlanStorageUnavailableException("offline", null);
+            }
             updated = workoutPlan;
         }
 
         @Override
-        public void delete(UUID planId) {
+        public void delete(UUID planId) throws PlanStorageUnavailableException {
+            if (failDelete) {
+                throw new PlanStorageUnavailableException("offline", null);
+            }
             deletedId = planId;
         }
     }

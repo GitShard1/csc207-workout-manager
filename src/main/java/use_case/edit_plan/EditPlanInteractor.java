@@ -7,12 +7,16 @@ import entity.WorkoutPlan;
 import use_case.account.CurrentUserDataAccessInterface;
 import use_case.plan_common.ExerciseLookupDataAccessInterface;
 import use_case.plan_common.PlanInputValidator;
+import use_case.plan_common.PlanStorageUnavailableException;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
 public class EditPlanInteractor implements EditPlanInputBoundary {
+    private static final String PLANS_UNREACHABLE = "Couldn't reach your plans right now. Please try again.";
+    private static final String CHANGES_NOT_SAVED = "Your changes weren't saved. Please try again.";
+
     private final EditPlanDataAccessInterface dataAccess;
     private final ExerciseLookupDataAccessInterface exerciseLookup;
     private final CurrentUserDataAccessInterface currentUserReader;
@@ -51,8 +55,17 @@ public class EditPlanInteractor implements EditPlanInputBoundary {
             presenter.prepareFailView(inputCheck);
             return;
         }
-        else if (!name.equalsIgnoreCase(targetPlan.getName())
-                && dataAccess.existsByName(targetPlan.getUserOwnerID(), name)) {
+
+        final boolean nameTaken;
+        try {
+            nameTaken = !name.equalsIgnoreCase(targetPlan.getName())
+                    && dataAccess.existsByName(targetPlan.getUserOwnerID(), name);
+        }
+        catch (PlanStorageUnavailableException exception) {
+            presenter.prepareFailView(CHANGES_NOT_SAVED);
+            return;
+        }
+        if (nameTaken) {
             presenter.prepareFailView("You already have a plan called \"" + name + "\".");
             return;
         }
@@ -73,7 +86,13 @@ public class EditPlanInteractor implements EditPlanInputBoundary {
                 targetPlan.getUserOwnerID(), checkedExercises, targetPlan.isWorkoutCompleted(), false,
                 targetPlan.getCopiedFromUserID());
 
-        dataAccess.update(editedWorkoutPlan);
+        try {
+            dataAccess.update(editedWorkoutPlan);
+        }
+        catch (PlanStorageUnavailableException exception) {
+            presenter.prepareFailView(CHANGES_NOT_SAVED);
+            return;
+        }
 
         presenter.prepareSuccessView(toOutputData(editedWorkoutPlan));
     }
@@ -85,7 +104,13 @@ public class EditPlanInteractor implements EditPlanInputBoundary {
             return;
         }
 
-        dataAccess.delete(targetPlan.getWorkoutPlanID());
+        try {
+            dataAccess.delete(targetPlan.getWorkoutPlanID());
+        }
+        catch (PlanStorageUnavailableException exception) {
+            presenter.prepareFailView("Your plan wasn't deleted. Please try again.");
+            return;
+        }
 
         presenter.prepareDeleteSuccessView();
     }
@@ -104,7 +129,14 @@ public class EditPlanInteractor implements EditPlanInputBoundary {
             return null;
         }
 
-        final WorkoutPlan targetPlan = dataAccess.getById(planId);
+        final WorkoutPlan targetPlan;
+        try {
+            targetPlan = dataAccess.getById(planId);
+        }
+        catch (PlanStorageUnavailableException exception) {
+            presenter.prepareFailView(PLANS_UNREACHABLE);
+            return null;
+        }
         if (targetPlan == null) {
             presenter.prepareFailView("Plan not found.");
             return null;

@@ -178,14 +178,29 @@ class CreatePlanInteractorTest {
         assertNull(planDataAccessObject.saved);
     }
 
+    @Test
+    void failureNameCheckFailsTest() {
+        planDataAccessObject.failExistsByName = true;
+
+        create("Push Day", List.of(entry("0025", 3, 8, 60.0)));
+
+        assertEquals("Your plan wasn't saved. Please try again.", presenter.error);
+        assertNull(presenter.success);
+        assertNull(planDataAccessObject.saved);
+    }
+
     /** Stands in for plan storage. Remembers what was saved. */
     private static class FakePlanDataAccessObject implements CreatePlanDataAccessInterface {
         private final List<String> takenNames = new ArrayList<>();
         private WorkoutPlan saved;
         private boolean failSave;
+        private boolean failExistsByName;
 
         @Override
-        public boolean existsByName(UUID ownerId, String planName) {
+        public boolean existsByName(UUID ownerId, String planName) throws PlanStorageUnavailableException {
+            if (failExistsByName) {
+                throw new PlanStorageUnavailableException("offline", null);
+            }
             return takenNames.contains(planName.toLowerCase());
         }
 

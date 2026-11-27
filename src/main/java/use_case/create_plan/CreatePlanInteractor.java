@@ -14,6 +14,8 @@ import java.util.List;
 import java.util.UUID;
 
 public class CreatePlanInteractor implements CreatePlanInputBoundary {
+    private static final String PLAN_NOT_SAVED = "Your plan wasn't saved. Please try again.";
+
     private final CreatePlanDataAccessInterface planDataAccess;
     private final ExerciseLookupDataAccessInterface exerciseLookup;
     private final CurrentUserDataAccessInterface currentUserReader;
@@ -47,7 +49,15 @@ public class CreatePlanInteractor implements CreatePlanInputBoundary {
             return;
         }
 
-        if (planDataAccess.existsByName(ownerId, name)) {
+        final boolean nameTaken;
+        try {
+            nameTaken = planDataAccess.existsByName(ownerId, name);
+        }
+        catch (PlanStorageUnavailableException exception) {
+            presenter.prepareFailView(PLAN_NOT_SAVED);
+            return;
+        }
+        if (nameTaken) {
             presenter.prepareFailView("You already have a plan called \"" + name + "\".");
             return;
         }
@@ -71,7 +81,7 @@ public class CreatePlanInteractor implements CreatePlanInputBoundary {
             planDataAccess.save(newPlan);
         }
         catch (PlanStorageUnavailableException exception) {
-            presenter.prepareFailView("Your plan wasn't saved. Please try again.");
+            presenter.prepareFailView(PLAN_NOT_SAVED);
             return;
         }
 
