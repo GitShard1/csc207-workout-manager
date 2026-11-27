@@ -1,4 +1,4 @@
-package use_case.create_plan;
+package use_case.plan_common;
 
 import entity.Exercise;
 

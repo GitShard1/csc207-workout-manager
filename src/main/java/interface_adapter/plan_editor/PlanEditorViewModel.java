@@ -1,26 +1,17 @@
 package interface_adapter.plan_editor;
 
-import java.beans.PropertyChangeListener;
-import java.beans.PropertyChangeSupport;
+import interface_adapter.ViewModel;
 
-public class PlanEditorViewModel {
-    public static final String VIEW_NAME = "plan editor";
-    private PlanEditorState state = new PlanEditorState();
-    private final PropertyChangeSupport propertyChangeSupport = new PropertyChangeSupport(this);
+public final class PlanEditorViewModel extends ViewModel<PlanEditorState> {
+    public static final String VIEW_NAME = "Plan Editor";
 
-    public PlanEditorState getState() {
-        return state;
+    public PlanEditorViewModel() {
+        super(VIEW_NAME, PlanEditorState.empty());
     }
 
-    public void setState(PlanEditorState state) {
-        this.state = state;
-    }
-
-    public void firePropertyChanged() {
-        propertyChangeSupport.firePropertyChange("state", null, state);
-    }
-
-    public void addPropertyChangeListener(PropertyChangeListener listener) {
-        propertyChangeSupport.addPropertyChangeListener(listener);
+    /** Shared by the plan presenters: keeps the plan on screen and adds the error. */
+    public void showError(String error) {
+        final PlanEditorState current = getState();
+        setState(new PlanEditorState(current.planId(), current.name(), current.exercises(), error));
     }
 }
