@@ -7,7 +7,9 @@ values
     ('6bed0f17-a7a8-42de-9d8c-8502edfb0410', 'follow-sql-owner-5c8ad@example.test',
         '{"username":"follow_test_owner_5c8ad","display_name":"Test Owner"}'),
     ('f0b69f26-f36f-4b36-9dd5-5c4ec93d9770', 'follow-sql-target-5c8ad@example.test',
-        '{"username":"follow_test_target_5c8ad","display_name":"Test Target"}');
+        '{"username":"follow_test_target_5c8ad","display_name":"Test Target"}'),
+    ('ba5735f1-0982-417a-a0eb-fafcd0f2de98', 'follow-sql-other-5c8ad@example.test',
+        '{"username":"follow_test_other_5c8ad","display_name":"Other Owner"}');
 
 set local role authenticated;
 set local request.jwt.claim.sub = '6bed0f17-a7a8-42de-9d8c-8502edfb0410';
@@ -84,6 +86,56 @@ begin
     if (select array_agg(follower_id) from public.follows) is distinct from array[target_id] then
         raise exception 'The second account should only see its own table row';
     end if;
+
+    delete from public.follows where follower_id = owner_id and followed_id = target_id;
+    if found then
+        raise exception 'The second account should be unable to delete the first account''s bookmark';
+    end if;
+end
+$$;
+
+set local request.jwt.claim.sub = 'ba5735f1-0982-417a-a0eb-fafcd0f2de98';
+insert into public.follows (followed_id) values ('f0b69f26-f36f-4b36-9dd5-5c4ec93d9770');
+
+set local request.jwt.claim.sub = '6bed0f17-a7a8-42de-9d8c-8502edfb0410';
+
+do $$
+declare
+    owner_id constant uuid := '6bed0f17-a7a8-42de-9d8c-8502edfb0410';
+    target_id constant uuid := 'f0b69f26-f36f-4b36-9dd5-5c4ec93d9770';
+    other_id constant uuid := 'ba5735f1-0982-417a-a0eb-fafcd0f2de98';
+begin
+    insert into public.follows (followed_id) values (other_id);
+
+    delete from public.follows where follower_id = owner_id and followed_id = target_id;
+    if not found then
+        raise exception 'The owner should be able to delete their own bookmark';
+    end if;
+
+    delete from public.follows where follower_id = owner_id and followed_id = target_id;
+    if found then
+        raise exception 'Retrying an absent bookmark should delete zero rows';
+    end if;
+
+    if (select array_agg(id) from public.list_following()) is distinct from array[other_id] then
+        raise exception 'The selected bookmark should be gone and the owner''s other bookmark should remain';
+    end if;
+
+    insert into public.follows (followed_id) values (target_id);
+    if not exists (select 1 from public.list_following() where id = target_id) then
+        raise exception 'The owner should be able to follow the same account again';
+    end if;
+end
+$$;
+
+set local request.jwt.claim.sub = 'ba5735f1-0982-417a-a0eb-fafcd0f2de98';
+
+do $$
+begin
+    if (select array_agg(id) from public.list_following()) is distinct from
+        array['f0b69f26-f36f-4b36-9dd5-5c4ec93d9770'::uuid] then
+        raise exception 'Another account''s bookmark for the same target should survive';
+    end if;
 end
 $$;
 
@@ -102,6 +154,13 @@ begin
     begin
         perform * from public.list_following();
         raise exception 'The Following list should require sign-in';
+    exception when insufficient_privilege then
+        null;
+    end;
+
+    begin
+        delete from public.follows;
+        raise exception 'Deleting a bookmark should require sign-in';
     exception when insufficient_privilege then
         null;
     end;

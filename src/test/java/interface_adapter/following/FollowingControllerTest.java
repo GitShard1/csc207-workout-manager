@@ -3,6 +3,7 @@ package interface_adapter.following;
 import org.junit.jupiter.api.Test;
 import use_case.following.FindFollowAccountInputData;
 import use_case.following.FollowAccountInputData;
+import use_case.unfollow_account.UnfollowAccountInputData;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -13,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class FollowingControllerTest {
     private final List<Object> calls = new ArrayList<>();
     private final FollowingController controller =
-            new FollowingController(() -> calls.add("load"), calls::add, calls::add);
+            new FollowingController(() -> calls.add("load"), calls::add, calls::add, calls::add);
 
     @Test
     void loadsThroughTheLoadBoundary() {
@@ -36,5 +37,14 @@ class FollowingControllerTest {
         controller.follow(selected);
 
         assertEquals(List.of(new FollowAccountInputData(selected)), calls);
+    }
+
+    @Test
+    void forwardsOnlyTheSelectedIdThroughTheUnfollowBoundary() {
+        final UUID selected = UUID.randomUUID();
+
+        controller.unfollow(selected);
+
+        assertEquals(List.of(new UnfollowAccountInputData(selected)), calls);
     }
 }
