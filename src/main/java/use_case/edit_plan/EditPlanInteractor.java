@@ -6,6 +6,7 @@ import entity.User;
 import entity.WorkoutPlan;
 import use_case.account.CurrentUserDataAccessInterface;
 import use_case.plan_common.ExerciseLookupDataAccessInterface;
+import use_case.plan_common.PlanAccessValidator;
 import use_case.plan_common.PlanInputValidator;
 import use_case.plan_common.PlanStorageUnavailableException;
 
@@ -137,16 +138,9 @@ public class EditPlanInteractor implements EditPlanInputBoundary {
             presenter.prepareFailView(PLANS_UNREACHABLE);
             return null;
         }
-        if (targetPlan == null) {
-            presenter.prepareFailView("Plan not found.");
-            return null;
-        }
-        else if (targetPlan.isPreset()) {
-            presenter.prepareFailView("Starter plans can't be edited.");
-            return null;
-        }
-        else if (!currentUser.getUserID().equals(targetPlan.getUserOwnerID())) {
-            presenter.prepareFailView("You can only edit your own plans.");
+        final String accessCheck = PlanAccessValidator.checkEditable(currentUser, targetPlan);
+        if (!accessCheck.isBlank()) {
+            presenter.prepareFailView(accessCheck);
             return null;
         }
         return targetPlan;
