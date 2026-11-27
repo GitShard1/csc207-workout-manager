@@ -27,6 +27,7 @@ import use_case.following.FollowingInteractor;
 import use_case.login.LogInInteractor;
 import use_case.logout.LogOutInteractor;
 import use_case.register.RegisterInteractor;
+import use_case.unfollow_account.UnfollowAccountInteractor;
 import view.FollowingView;
 import view.HomeView;
 import view.LogInView;
@@ -81,10 +82,12 @@ public final class WorkoutManagerApp {
                 session, new RegisterPresenter(viewManagerModel, registerViewModel, homeViewModel)));
         final LogOutController logOut = new LogOutController(new LogOutInteractor(session, auth,
                 new LogOutPresenter(viewManagerModel, logInViewModel, homeViewModel)));
-        final FollowingInteractor followingInteractor = new FollowingInteractor(session,
-                new SupabaseFollowingDao(client, session), new FollowingPresenter(followingViewModel));
+        final SupabaseFollowingDao bookmarks = new SupabaseFollowingDao(client, session);
+        final FollowingPresenter followingPresenter = new FollowingPresenter(followingViewModel);
+        final FollowingInteractor followingInteractor = new FollowingInteractor(session, bookmarks, followingPresenter);
         final FollowingController following = new FollowingController(
-                followingInteractor, followingInteractor, followingInteractor);
+                followingInteractor, followingInteractor, followingInteractor,
+                new UnfollowAccountInteractor(session, bookmarks, followingPresenter));
 
         // Change Password (#22)
         final SettingsViewModel settingsViewModel = new SettingsViewModel();

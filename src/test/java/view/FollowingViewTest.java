@@ -14,6 +14,8 @@ import org.junit.jupiter.api.Test;
 import use_case.account.AccountProfile;
 import use_case.following.FollowingDataAccessInterface;
 import use_case.following.FollowingInteractor;
+import use_case.unfollow_account.UnfollowAccountDataAccessInterface;
+import use_case.unfollow_account.UnfollowAccountInteractor;
 
 import javax.swing.JButton;
 import javax.swing.JList;
@@ -66,9 +68,12 @@ class FollowingViewTest {
             }));
             homeModel.showSignedIn(AccountProfile.from(SAM));
             final FollowingViewModel followingModel = new FollowingViewModel();
-            final FollowingInteractor interactor = new FollowingInteractor(() -> Optional.ofNullable(currentUser.get()),
-                    bookmarks, new FollowingPresenter(followingModel));
-            final var controller = new FollowingController(interactor, interactor, interactor);
+            final var presenter = new FollowingPresenter(followingModel);
+            final FollowingInteractor interactor = new FollowingInteractor(
+                    () -> Optional.ofNullable(currentUser.get()), bookmarks, presenter);
+            final var unfollow = new UnfollowAccountInteractor(
+                    () -> Optional.ofNullable(currentUser.get()), bookmarks, presenter);
+            final var controller = new FollowingController(interactor, interactor, interactor, unfollow);
             following = new FollowingView(followingModel, controller, viewManager);
 
             views = new ViewManager(viewManager);
@@ -189,6 +194,119 @@ class FollowingViewTest {
             assertEquals("Now following @alex_1.", status());
             assertEquals(1, followingList().getModel().getSize());
         });
+    }
+
+    @Test
+    void unfollowsTheSelectedBookmarkAndCanFollowItAgainAfterSigningBackIn() throws Exception {
+        bookmarks.saved.put(SAM.getUserID(), List.of(ALEX, CASEY_PROFILE));
+        bookmarks.saved.put(CASEY.getUserID(), List.of(ALEX));
+        openFollowing();
+        search("casey_1");
+        onEdt(() -> {
+            assertFalse(unfollowButton().isEnabled());
+            unfollowButton().doClick(0);
+            assertEquals(0, bookmarks.deleteCalls.get());
+            followingList().setSelectedIndex(0);
+            assertTrue(unfollowButton().isEnabled());
+            unfollowButton().doClick(0);
+        });
+        await(() -> button(following, "Refresh").isEnabled());
+
+        assertEquals(List.of(CASEY_PROFILE), bookmarks.saved.get(SAM.getUserID()));
+        assertEquals(List.of(ALEX), bookmarks.saved.get(CASEY.getUserID()));
+        onEdt(() -> {
+            assertEquals("Account unfollowed.", status());
+            assertOnlyCaseyIsBookmarked();
+            assertFalse(unfollowButton().isEnabled());
+            button(following, "Refresh").doClick(0);
+        });
+        await(() -> button(following, "Refresh").isEnabled());
+        onEdt(() -> {
+            assertOnlyCaseyIsBookmarked();
+            sidebarButton("Dashboard").doClick(0);
+            button(home, "Log Out").doClick(0);
+        });
+        await(() -> LogInViewModel.VIEW_NAME.equals(viewManager.getState())
+                && button(home, "Log Out").isEnabled());
+        onEdt(() -> {
+            currentUser.set(SAM);
+            viewManager.setState(HomeViewModel.VIEW_NAME);
+        });
+        openFollowing();
+        onEdt(this::assertOnlyCaseyIsBookmarked);
+
+        search("alex_1");
+        onEdt(() -> followButton().doClick(0));
+        await(() -> followButton().isEnabled());
+        assertEquals(List.of(ALEX, CASEY_PROFILE), bookmarks.saved.get(SAM.getUserID()));
+        onEdt(() -> {
+            assertEquals("Now following @alex_1.", status());
+            assertEquals("@alex_1 - Alex", followingList().getModel().getElementAt(0));
+        });
+    }
+
+    @Test
+    void blocksDuplicateUnfollowsAndKeepsTheRowSelectedForRetryAfterFailure() throws Exception {
+        bookmarks.saved.put(SAM.getUserID(), List.of(CASEY_PROFILE, ALEX));
+        openFollowing();
+        final CountDownLatch releaseDelete = new CountDownLatch(1);
+        bookmarks.releaseDelete = releaseDelete;
+        bookmarks.failDelete = true;
+
+        try {
+            onEdt(() -> {
+                followingList().setSelectedIndex(1);
+                unfollowButton().doClick(0);
+            });
+            assertTrue(bookmarks.deleteStarted.await(5, TimeUnit.SECONDS), "Unfollow should start off the EDT");
+            onEdt(() -> {
+                assertEquals("Removing follow...", status());
+                assertFalse(unfollowButton().isEnabled());
+                assertFalse(followingList().isEnabled());
+                assertFalse(button(following, "Refresh").isEnabled());
+                unfollowButton().doClick(0);
+            });
+            assertEquals(1, bookmarks.deleteCalls.get());
+        } finally {
+            releaseDelete.countDown();
+        }
+        await(() -> unfollowButton().isEnabled());
+        onEdt(() -> {
+            assertEquals("Couldn't unfollow the account. Try again.", status());
+            assertEquals("@alex_1 - Alex", followingList().getSelectedValue());
+            assertEquals(2, followingList().getModel().getSize());
+            bookmarks.failDelete = false;
+            unfollowButton().doClick(0);
+        });
+        await(() -> button(following, "Refresh").isEnabled());
+
+        assertEquals(2, bookmarks.deleteCalls.get());
+        onEdt(() -> {
+            assertEquals("Account unfollowed.", status());
+            assertOnlyCaseyIsBookmarked();
+        });
+    }
+
+    @Test
+    void clearsAStaleRowWhenTheBookmarkIsAlreadyAbsent() throws Exception {
+        bookmarks.saved.put(SAM.getUserID(), List.of(ALEX));
+        openFollowing();
+        bookmarks.saved.remove(SAM.getUserID());
+
+        onEdt(() -> {
+            followingList().setSelectedIndex(0);
+            unfollowButton().doClick(0);
+        });
+        await(() -> button(following, "Refresh").isEnabled());
+        onEdt(() -> {
+            assertEquals("Account unfollowed.", status());
+            assertEquals(0, followingList().getModel().getSize());
+        });
+    }
+
+    private void assertOnlyCaseyIsBookmarked() {
+        assertEquals(1, followingList().getModel().getSize());
+        assertEquals("@casey_1 - Casey", followingList().getModel().getElementAt(0));
     }
 
     @Test
@@ -323,6 +441,10 @@ class FollowingViewTest {
         return button(following, "Follow");
     }
 
+    private JButton unfollowButton() {
+        return button(following, "Unfollow");
+    }
+
     private String status() {
         return label(following, "Following status").getText();
     }
@@ -335,7 +457,7 @@ class FollowingViewTest {
         return find(following, JList.class, list -> true);
     }
 
-    private final class FollowingFixture implements FollowingDataAccessInterface {
+    private final class FollowingFixture implements FollowingDataAccessInterface, UnfollowAccountDataAccessInterface {
         private final List<AccountProfile> profiles = List.of(AccountProfile.from(SAM), ALEX, CASEY_PROFILE);
         private final Map<UUID, List<AccountProfile>> saved = new ConcurrentHashMap<>();
         private final AtomicInteger saveCalls = new AtomicInteger();
@@ -345,6 +467,10 @@ class FollowingViewTest {
         private volatile boolean failSave;
         private volatile boolean failList;
         private volatile boolean failUnexpectedly;
+        private final AtomicInteger deleteCalls = new AtomicInteger();
+        private final CountDownLatch deleteStarted = new CountDownLatch(1);
+        private volatile CountDownLatch releaseDelete;
+        private volatile boolean failDelete;
 
         @Override
         public List<AccountProfile> list(UUID viewerId) throws RequestFailed {
@@ -386,6 +512,27 @@ class FollowingViewTest {
             updated.addFirst(target);
             saved.put(follow.followerId(), List.copyOf(updated));
             return SaveResult.SAVED;
+        }
+
+        @Override
+        public void delete(UUID viewerId, UUID followedId) throws DeleteFailed {
+            assertViewer(viewerId);
+            deleteCalls.incrementAndGet();
+            deleteStarted.countDown();
+            final CountDownLatch release = releaseDelete;
+            if (release != null) {
+                try {
+                    assertTrue(release.await(5, TimeUnit.SECONDS), "The test should release the delete");
+                } catch (InterruptedException ignored) {
+                    Thread.currentThread().interrupt();
+                    throw new DeleteFailed();
+                }
+            }
+            if (failDelete) {
+                throw new DeleteFailed();
+            }
+            saved.computeIfPresent(viewerId, (owner, accounts) -> accounts.stream()
+                    .filter(account -> !account.userID().equals(followedId)).toList());
         }
 
         private void waitForSaveRelease() throws RequestFailed {

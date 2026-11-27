@@ -47,7 +47,7 @@ As a user, I want to see my history and personal records so I can see my own gro
 
 ### User Story 7
 
-As a signed-in user, I want to follow another account by username so I can find that account again in my private Following list.
+As a signed-in user, I want to follow accounts by username and remove bookmarks I no longer need so I can keep a private Following list of accounts I want to find again.
 
 ### User Story 8
 
@@ -134,11 +134,49 @@ As a user, I want to change my password and other account settings so that my ac
 
 ### Create a Workout Plan
 
-The user starts a blank or preset plan, names it, adds exercises with target sets and reps, and saves it to their list of plans.
+**Actor:** Signed-in user. **Precondition:** Signed in. **Trigger:** The user asks to create a new workout plan.
+
+**Success outcome:** A new plan with a name and at least one exercise, each with target sets and reps, is saved and appears in the user's list of plans.
+
+1. The user starts a blank plan and names it.
+2. The user adds exercises from the exercise library, adjusts their target sets, reps and, optionally, weight, and reorders or removes them as needed.
+3. The system checks the plan, saves it and shows it in the user's list of plans.
+
+**Extensions:**
+- At step 1, the user can start from a starter plan instead. The system gives the user their own copy of it with its exercises already filled in.
+- At step 2, the user can abandon the plan. If anything was entered, the system asks the user to confirm discarding it, and no plan is saved.
+- At step 3, if the plan has no name, a name over 50 characters, the same name as another of the user's plans, no exercises, or an exercise with fewer than 1 set or rep or a negative weight, the system explains what is wrong and keeps what the user typed.
+- At step 3, if the plan can't be saved, the system says so and keeps the plan open, and the user can try again.
 
 ### Edit a Workout Plan
 
-The user changes a plan's name, exercises or targets, or deletes the plan. Workouts already logged from it are kept unchanged.
+**Actor:** Signed-in user. **Precondition:** Signed in, with at least one plan of their own. **Trigger:** The user opens one of their plans to change it.
+
+**Success outcome:** The plan's changes are saved, and workouts already logged from it are unchanged.
+
+1. The system shows the plan's name and its exercises with their target sets, reps and weight.
+2. The user renames the plan, adds, removes or reorders exercises, or changes their targets.
+3. The system checks the plan, saves the changes and shows the updated plan.
+
+**Extensions:**
+- At step 1, if the plan can't be found, is a starter plan, or belongs to another user, the system says it can't be edited and nothing changes.
+- At step 3, if the plan has no name, a name over 50 characters, the same name as another of the user's plans, no exercises, or an exercise with fewer than 1 set or rep or a negative weight, the system explains what is wrong and keeps what the user typed.
+- At any step, if the user's plans can't be reached or a change can't be saved, the system says so, nothing changes, and the user can try again.
+
+### Delete a Workout Plan
+
+**Actor:** Signed-in user. **Precondition:** Signed in, with at least one plan of their own. **Trigger:** The user chooses to delete one of their plans from their list of plans.
+
+**Success outcome:** The plan is removed from the user's plans, and workouts already logged from it are unchanged.
+
+1. The user chooses to delete one of their plans.
+2. The system asks the user to confirm.
+3. The system checks the plan, removes it and updates the user's list of plans.
+
+**Extensions:**
+- At step 2, if the user doesn't confirm, nothing changes.
+- At step 3, if the plan can't be found, is a starter plan, or belongs to another user, the system says it can't be deleted and nothing changes.
+- At step 3, if the user's plans can't be reached or the plan can't be removed, the system says so, nothing changes, and the user can try again.
 
 ### Log a Workout
 
@@ -167,6 +205,21 @@ The account appears once in the user's private Following list and is still there
 
 The bookmark is visible only to its owner and takes effect without approval or notification. Following grants no extra access to the bookmarked account's profile, plans, or workout history.
 
+### Unfollow an Account
+
+The actor is a signed-in user with a bookmark in their private Following list. The use case starts when the user chooses to remove a selected bookmark.
+
+1. The user selects a bookmarked account.
+2. The system removes that bookmark from the user's list and confirms the removal.
+3. The account stays absent after refreshing the list and signing back in. The user can follow the account again later.
+
+**Extensions**
+
+- The action is unavailable until the user selects an account, and remains unavailable while the request is running.
+- If the bookmark is already gone, the app confirms the removal and clears the stale row.
+- If the request fails, the app shows a retry message and keeps the bookmark selected.
+- If the user is signed out, the app asks them to sign in and clears the displayed accounts.
+
 ### Respond to a Friend Request (Planned)
 
 The user views pending friend requests and accepts or declines each one. Accepting makes the two users friends, so they can see each other's profiles, plans and recent workouts.
@@ -185,7 +238,7 @@ The user opens a friend's profile and copies one of their plans. The system save
 | Demeng | Register an Account, Log In, Log Out |
 | Eric | Follow Accounts |
 | David | Find an Exercise |
-| Amgalan | Use Case |
+| Amgalan | Create a Workout Plan, Edit a Workout Plan, Delete a Workout Plan |
 
 ---
 
@@ -280,7 +333,7 @@ Instance Attributes:
 
 **Documentation:** [Auth](https://supabase.com/docs/guides/auth/passwords), [Data REST API](https://supabase.com/docs/guides/api)
 
-Supabase Auth handles registration, login, logout, and password changes. The `profiles` table stores usernames and display names. Following uses `find_follow_profile` for an exact username lookup and `list_following` for the signed-in owner's bookmarks. The app sends only `followed_id` when it saves a follow. Supabase assigns the owner and limits reads to that owner's rows.
+Supabase Auth handles registration, login, logout, and password changes. The `profiles` table stores usernames and display names. Following uses `find_follow_profile` for an exact username lookup and `list_following` for the signed-in owner's bookmarks. Supabase assigns the owner when the app saves a follow and limits reads and deletes to that owner's rows. Unfollow sends both account IDs to target one bookmark.
 
 **API Name:** WorkoutX
 
@@ -298,6 +351,19 @@ See the [entity class diagram](docs/entity-diagram.md).
 
 ### Sequence Diagrams
 
+**Unfollow an Account**
+
+```mermaid
+sequenceDiagram
+    FollowingView->>FollowingController: Send the selected account UUID from a background worker
+    FollowingController->>UnfollowAccountInteractor: execute(UnfollowAccountInputData)
+    UnfollowAccountInteractor->>CurrentUserDataAccessInterface: Get the signed-in owner
+    UnfollowAccountInteractor->>UnfollowAccountDataAccessInterface: Delete the owner's bookmark for that UUID
+    UnfollowAccountInteractor->>FollowingPresenter: Report success or failure through the output boundary
+    FollowingPresenter->>FollowingViewModel: Update the list and status message
+    FollowingViewModel-->>FollowingView: Notify the view, which renders on the Swing event thread
+```
+
 ---
 
 ## How to Run
@@ -308,7 +374,7 @@ Install JDK 25, then run this from the repository root (use `.\mvnw.cmd` on Wind
 ./mvnw compile exec:exec
 ```
 
-You can also open `pom.xml` as a Maven project in your IDE and run `app.WorkoutManagerApp`. The app connects to the team's Supabase project, so no setup is needed.
+You can also open `pom.xml` as a Maven project in your IDE and run `app.WorkoutManagerApp`. The app connects to the team's Supabase project by default. Unfollow requires the migration listed below.
 
 ### Following demo
 
@@ -316,6 +382,9 @@ You can also open `pom.xml` as a Maven project in your IDE and run `app.WorkoutM
 2. Select **Follow**. The account appears immediately.
 3. Select **Follow** again. The app shows **Already following** and still displays one row.
 4. Sign out, sign back in as the first account, and reopen **Following** to see the saved bookmark.
+5. Select the bookmark, then choose **Unfollow** beside **Refresh**. The row disappears immediately after the app confirms removal.
+6. Choose **Refresh**, then sign out and back in. Reopen **Following** and confirm the account is still absent.
+7. Search for the second account by username and choose **Follow** again. The bookmark reappears.
 
 ---
 
@@ -325,7 +394,7 @@ You can also open `pom.xml` as a Maven project in your IDE and run `app.WorkoutM
 
 - `./mvnw test` checks style and runs the unit tests. `./mvnw verify` also writes a coverage report to `target/site/jacoco/index.html`.
 - GitHub Actions runs the same checks on pull requests and pushes to `main`.
-- To point the app at a different Supabase project, apply the [profile migration](supabase/migrations/20261123190718_account_profiles.sql) first and the [Following migration](supabase/migrations/20261124190842_follow_accounts.sql) second. Set both `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`.
+- Apply the [profile](supabase/migrations/20261123190718_account_profiles.sql), [Following](supabase/migrations/20261124190842_follow_accounts.sql), and [Unfollow](supabase/migrations/20261126233716_unfollow_accounts.sql) migrations in that order when setting up a Supabase project. Set `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` to use a different project.
 - Following's unit tests use an in-memory DAO. Its HTTP tests use a loopback server. The [SQL privacy suite](supabase/tests/following_privacy.sql) checks ownership and database constraints in a migrated test project.
 
 ### Using the signed-in user

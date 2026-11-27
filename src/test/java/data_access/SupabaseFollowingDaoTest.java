@@ -11,11 +11,13 @@ import use_case.account.AuthSession;
 import use_case.change_password.ChangePasswordUserDataAccessInterface.Result;
 import use_case.following.FollowingDataAccessInterface.RequestFailed;
 import use_case.following.FollowingDataAccessInterface.SaveResult;
+import use_case.unfollow_account.UnfollowAccountDataAccessInterface.DeleteFailed;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.locks.LockSupport;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -28,6 +30,8 @@ final class SupabaseFollowingDaoTest {
     private static final UUID OWNER_ID = OWNER.getUserID();
     private static final UUID TARGET_ID = TARGET.getUserID();
     private static final Follow BOOKMARK = new Follow(OWNER_ID, TARGET_ID);
+    private static final String DELETE_PATH = "/rest/v1/follows?follower_id=eq." + OWNER_ID
+            + "&followed_id=eq." + TARGET_ID;
     private static final String TARGET_ROW = """
             [{"id":"%s","username":"target","display_name":"Target"}]
             """.formatted(TARGET_ID);
@@ -119,6 +123,7 @@ final class SupabaseFollowingDaoTest {
         assertThrows(RequestFailed.class, () -> dao.list(OWNER_ID));
         assertThrows(RequestFailed.class, () -> dao.findByUsername(OWNER_ID, "target"));
         assertThrows(RequestFailed.class, () -> dao.save(BOOKMARK));
+        assertThrows(DeleteFailed.class, () -> dao.delete(OWNER_ID, TARGET_ID));
         assertNull(server.unexpectedCall());
     }
 
@@ -133,6 +138,7 @@ final class SupabaseFollowingDaoTest {
         assertThrows(RequestFailed.class, () -> dao.list(OWNER_ID));
         assertThrows(RequestFailed.class, () -> dao.findByUsername(OWNER_ID, "target"));
         assertThrows(RequestFailed.class, () -> dao.save(BOOKMARK));
+        assertThrows(DeleteFailed.class, () -> dao.delete(OWNER_ID, TARGET_ID));
         assertNull(server.unexpectedCall());
         server.enqueue(200, "[]");
         assertTrue(dao.list(TARGET_ID).isEmpty());
@@ -150,6 +156,45 @@ final class SupabaseFollowingDaoTest {
         assertThrows(RequestFailed.class, () -> dao.save(BOOKMARK));
         server.enqueue(503, "{\"code\":\"23505\"}");
         assertThrows(RequestFailed.class, () -> dao.save(BOOKMARK));
+    }
+
+    @Test
+    void deletesByBothIdsAndTreatsAnEmptySuccessAsSafeToRetry() throws Exception {
+        server.enqueue(503, "{}");
+        server.enqueue(204, "");
+        server.enqueue(204, "");
+
+        assertThrows(DeleteFailed.class, () -> dao.delete(OWNER_ID, TARGET_ID));
+        assertRequest("DELETE", DELETE_PATH, "owner.token", null);
+        dao.delete(OWNER_ID, TARGET_ID);
+        assertRequest("DELETE", DELETE_PATH, "owner.token", null);
+        dao.delete(OWNER_ID, TARGET_ID);
+        assertRequest("DELETE", DELETE_PATH, "owner.token", null);
+    }
+
+    @Test
+    void timeoutIsRecoverableEvenWhenTheServerEventuallyRepliesWithSuccess() throws Exception {
+        final var shortDeadline = new SupabaseFollowingDao(server.client(Duration.ofMillis(500)), sessions);
+        server.enqueue(204, "", () -> LockSupport.parkNanos(Duration.ofSeconds(5).toNanos()));
+
+        assertThrows(DeleteFailed.class, () -> shortDeadline.delete(OWNER_ID, TARGET_ID));
+        assertRequest("DELETE", DELETE_PATH, "owner.token", null);
+        server.enqueue(204, "");
+        dao.delete(OWNER_ID, TARGET_ID);
+        assertRequest("DELETE", DELETE_PATH, "owner.token", null);
+    }
+
+    @Test
+    void interruptedDeletePreservesTheThreadsInterruptStatus() {
+        server.enqueue(204, "");
+        Thread.currentThread().interrupt();
+
+        try {
+            assertThrows(DeleteFailed.class, () -> dao.delete(OWNER_ID, TARGET_ID));
+            assertTrue(Thread.currentThread().isInterrupted());
+        } finally {
+            Thread.interrupted();
+        }
     }
 
     @Test
@@ -173,12 +218,39 @@ final class SupabaseFollowingDaoTest {
         assertRequest("POST", "/rest/v1/rpc/list_following", "fresh.token", "{}");
     }
 
+    @Test
+    void unfollowAndTheNextRefreshUseTheFreshSessionAfterAChangeOfPassword() throws Exception {
+        final var passwordChange = new SupabaseChangePasswordDataAccessObject(client,
+                new SupabaseAuthDataAccessObject(client), sessions);
+        server.enqueue(200, "{\"email\":\"owner@example.test\"}");
+        server.enqueue(200, """
+                {"access_token":"fresh.token","user":{"id":"%s"}}
+                """.formatted(OWNER_ID));
+        server.enqueue(200, "{}");
+        server.enqueue(204, "");
+        server.enqueue(200, "[]");
+
+        assertEquals(Result.CHANGED, passwordChange.changePassword("old password", "new password"));
+        dao.delete(OWNER_ID, TARGET_ID);
+        assertTrue(dao.list(OWNER_ID).isEmpty());
+
+        assertRequest("GET", "/auth/v1/user", "owner.token", null);
+        assertRequest("POST", "/auth/v1/token?grant_type=password", null,
+                "{\"email\":\"owner@example.test\",\"password\":\"old password\"}");
+        assertRequest("PUT", "/auth/v1/user", "fresh.token", "{\"password\":\"new password\"}");
+        assertRequest("DELETE", DELETE_PATH, "fresh.token", null);
+        assertRequest("POST", "/rest/v1/rpc/list_following", "fresh.token", "{}");
+    }
+
     private void assertRequest(String method, String path, String token, String json) throws Exception {
         final var call = server.takeCall();
         assertEquals(method, call.method());
         assertEquals(path, call.path());
         assertEquals(LoopbackSupabase.API_KEY, call.apiKey());
         assertEquals(token == null ? null : "Bearer " + token, call.authorization());
+        if ("DELETE".equals(method)) {
+            assertEquals("return=minimal", call.prefer());
+        }
         if (json == null) {
             assertEquals("", call.body());
         } else {

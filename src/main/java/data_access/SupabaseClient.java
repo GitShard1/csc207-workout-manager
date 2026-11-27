@@ -76,6 +76,10 @@ public final class SupabaseClient {
         return send(request(path, accessToken).GET().build());
     }
 
+    HttpResponse<String> delete(String path, String accessToken) throws IOException, InterruptedException {
+        return send(request(path, accessToken).header("Prefer", "return=minimal").DELETE().build());
+    }
+
     HttpResponse<String> post(String path, JsonObject body, String accessToken)
             throws IOException, InterruptedException {
         final HttpRequest.Builder request = request(path, accessToken);
