@@ -6,6 +6,7 @@ import entity.Follow;
 import entity.User;
 import use_case.account.AccountProfile;
 import use_case.following.FollowingDataAccessInterface;
+import use_case.unfollow_account.UnfollowAccountDataAccessInterface;
 
 import java.io.IOException;
 import java.net.http.HttpResponse;
@@ -19,7 +20,7 @@ import static data_access.SupabaseJson.object;
 import static data_access.SupabaseJson.parse;
 import static data_access.SupabaseJson.string;
 
-public final class SupabaseFollowingDao implements FollowingDataAccessInterface {
+public final class SupabaseFollowingDao implements FollowingDataAccessInterface, UnfollowAccountDataAccessInterface {
     private final SupabaseClient client;
     private final InMemorySessionStore session;
 
@@ -56,6 +57,23 @@ public final class SupabaseFollowingDao implements FollowingDataAccessInterface 
             return SaveResult.ALREADY_FOLLOWING;
         }
         throw new RequestFailed();
+    }
+
+    @Override
+    public void delete(UUID viewerId, UUID followedId) throws DeleteFailed {
+        final String token = session.accessTokenFor(viewerId).orElseThrow(DeleteFailed::new);
+        final String path = "/rest/v1/follows?follower_id=eq." + viewerId + "&followed_id=eq." + followedId;
+        try {
+            // PostgREST returns 204 even when no row matches, so a retry can succeed after a lost response.
+            if (client.delete(path, token).statusCode() != 204) {
+                throw new DeleteFailed();
+            }
+        } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
+            throw new DeleteFailed();
+        } catch (IOException ignored) {
+            throw new DeleteFailed();
+        }
     }
 
     private HttpResponse<String> post(UUID viewerId, String path, JsonObject body) throws RequestFailed {

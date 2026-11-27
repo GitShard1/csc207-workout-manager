@@ -47,7 +47,7 @@ As a user, I want to see my history and personal records so I can see my own gro
 
 ### User Story 7
 
-As a signed-in user, I want to follow another account by username so I can find that account again in my private Following list.
+As a signed-in user, I want to follow accounts by username and remove bookmarks I no longer need so I can keep a private Following list of accounts I want to find again.
 
 ### User Story 8
 
@@ -205,6 +205,21 @@ The account appears once in the user's private Following list and is still there
 
 The bookmark is visible only to its owner and takes effect without approval or notification. Following grants no extra access to the bookmarked account's profile, plans, or workout history.
 
+### Unfollow an Account
+
+The actor is a signed-in user with a bookmark in their private Following list. The use case starts when the user chooses to remove a selected bookmark.
+
+1. The user selects a bookmarked account.
+2. The system removes that bookmark from the user's list and confirms the removal.
+3. The account stays absent after refreshing the list and signing back in. The user can follow the account again later.
+
+**Extensions**
+
+- The action is unavailable until the user selects an account, and remains unavailable while the request is running.
+- If the bookmark is already gone, the app confirms the removal and clears the stale row.
+- If the request fails, the app shows a retry message and keeps the bookmark selected.
+- If the user is signed out, the app asks them to sign in and clears the displayed accounts.
+
 ### Respond to a Friend Request (Planned)
 
 The user views pending friend requests and accepts or declines each one. Accepting makes the two users friends, so they can see each other's profiles, plans and recent workouts.
@@ -318,7 +333,7 @@ Instance Attributes:
 
 **Documentation:** [Auth](https://supabase.com/docs/guides/auth/passwords), [Data REST API](https://supabase.com/docs/guides/api)
 
-Supabase Auth handles registration, login, logout, and password changes. The `profiles` table stores usernames and display names. Following uses `find_follow_profile` for an exact username lookup and `list_following` for the signed-in owner's bookmarks. The app sends only `followed_id` when it saves a follow. Supabase assigns the owner and limits reads to that owner's rows.
+Supabase Auth handles registration, login, logout, and password changes. The `profiles` table stores usernames and display names. Following uses `find_follow_profile` for an exact username lookup and `list_following` for the signed-in owner's bookmarks. Supabase assigns the owner when the app saves a follow and limits reads and deletes to that owner's rows. Unfollow sends both account IDs to target one bookmark.
 
 **API Name:** WorkoutX
 
@@ -336,6 +351,19 @@ See the [entity class diagram](docs/entity-diagram.md).
 
 ### Sequence Diagrams
 
+**Unfollow an Account**
+
+```mermaid
+sequenceDiagram
+    FollowingView->>FollowingController: Send the selected account UUID from a background worker
+    FollowingController->>UnfollowAccountInteractor: execute(UnfollowAccountInputData)
+    UnfollowAccountInteractor->>CurrentUserDataAccessInterface: Get the signed-in owner
+    UnfollowAccountInteractor->>UnfollowAccountDataAccessInterface: Delete the owner's bookmark for that UUID
+    UnfollowAccountInteractor->>FollowingPresenter: Report success or failure through the output boundary
+    FollowingPresenter->>FollowingViewModel: Update the list and status message
+    FollowingViewModel-->>FollowingView: Notify the view, which renders on the Swing event thread
+```
+
 ---
 
 ## How to Run
@@ -346,7 +374,7 @@ Install JDK 25, then run this from the repository root (use `.\mvnw.cmd` on Wind
 ./mvnw compile exec:exec
 ```
 
-You can also open `pom.xml` as a Maven project in your IDE and run `app.WorkoutManagerApp`. The app connects to the team's Supabase project, so no setup is needed.
+You can also open `pom.xml` as a Maven project in your IDE and run `app.WorkoutManagerApp`. The app connects to the team's Supabase project by default. Unfollow requires the migration listed below.
 
 ### Following demo
 
@@ -354,6 +382,9 @@ You can also open `pom.xml` as a Maven project in your IDE and run `app.WorkoutM
 2. Select **Follow**. The account appears immediately.
 3. Select **Follow** again. The app shows **Already following** and still displays one row.
 4. Sign out, sign back in as the first account, and reopen **Following** to see the saved bookmark.
+5. Select the bookmark, then choose **Unfollow** beside **Refresh**. The row disappears immediately after the app confirms removal.
+6. Choose **Refresh**, then sign out and back in. Reopen **Following** and confirm the account is still absent.
+7. Search for the second account by username and choose **Follow** again. The bookmark reappears.
 
 ---
 
@@ -363,7 +394,7 @@ You can also open `pom.xml` as a Maven project in your IDE and run `app.WorkoutM
 
 - `./mvnw test` checks style and runs the unit tests. `./mvnw verify` also writes a coverage report to `target/site/jacoco/index.html`.
 - GitHub Actions runs the same checks on pull requests and pushes to `main`.
-- To point the app at a different Supabase project, apply the [profile migration](supabase/migrations/20261123190718_account_profiles.sql) first and the [Following migration](supabase/migrations/20261124190842_follow_accounts.sql) second. Set both `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`.
+- Apply the [profile](supabase/migrations/20261123190718_account_profiles.sql), [Following](supabase/migrations/20261124190842_follow_accounts.sql), and [Unfollow](supabase/migrations/20261126233716_unfollow_accounts.sql) migrations in that order when setting up a Supabase project. Set `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` to use a different project.
 - Following's unit tests use an in-memory DAO. Its HTTP tests use a loopback server. The [SQL privacy suite](supabase/tests/following_privacy.sql) checks ownership and database constraints in a migrated test project.
 
 ### Using the signed-in user
