@@ -1,16 +1,12 @@
 package use_case.start_workout;
 
-import entity.BodyPart;
-import entity.Exercise;
 import entity.ExerciseSet;
-import entity.LoggedExercise;
-import entity.PlannedExercise;
-import entity.User;
 import entity.Workout;
 import entity.WorkoutPlan;
 import org.junit.jupiter.api.Test;
 import use_case.account.CurrentUserDataAccessInterface;
 import use_case.plan_common.PlanStorageUnavailableException;
+import use_case.workout_common.SetEntry;
 import use_case.workout_common.WorkoutStorageUnavailableException;
 
 import java.time.LocalDate;
@@ -23,17 +19,17 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static use_case.workout_common.WorkoutFixtures.BENCH_PRESS;
+import static use_case.workout_common.WorkoutFixtures.SQUAT;
+import static use_case.workout_common.WorkoutFixtures.USER;
+import static use_case.workout_common.WorkoutFixtures.earlierWorkout;
+import static use_case.workout_common.WorkoutFixtures.logged;
+import static use_case.workout_common.WorkoutFixtures.pushDay;
+import static use_case.workout_common.WorkoutFixtures.someoneElsesPlan;
+import static use_case.workout_common.WorkoutFixtures.starterPlan;
 
 class StartWorkoutInteractorTest {
-    private static final User USER = new User(UUID.randomUUID(), "amgalan", "Amgalan");
-    private static final Exercise BENCH_PRESS = new Exercise("0025", "Barbell Bench Press", "A chest press.",
-            BodyPart.CHEST, "Pectorals", List.of(), "Barbell", "compound", List.of());
-    private static final Exercise SQUAT = new Exercise("0043", "Barbell Squat", "A leg exercise.",
-            BodyPart.UPPER_LEGS, "Quads", List.of(), "Barbell", "compound", List.of());
-
-    private final WorkoutPlan pushDay = new WorkoutPlan(UUID.randomUUID(), "Push Day", USER.getUserID(),
-            List.of(new PlannedExercise(BENCH_PRESS, 3, 8, 60.0), new PlannedExercise(SQUAT, 5, 5, null)),
-            false, false, null);
+    private final WorkoutPlan pushDay = pushDay();
 
     private final FakePlanDataAccessObject planDataAccessObject = new FakePlanDataAccessObject();
     private final FakeHistoryDataAccessObject historyDataAccessObject = new FakeHistoryDataAccessObject();
@@ -49,20 +45,11 @@ class StartWorkoutInteractorTest {
                 presenter).execute(new StartWorkoutInputData(planId));
     }
 
-    private static Workout workout(LocalDate date, LoggedExercise... exercises) {
-        return new Workout(UUID.randomUUID(), USER.getUserID(), UUID.randomUUID(), "Push Day", date,
-                List.of(exercises));
-    }
-
-    private static LoggedExercise logged(Exercise exercise, ExerciseSet... sets) {
-        return new LoggedExercise(exercise, List.of(sets));
-    }
-
     @Test
     void successTest() {
-        historyDataAccessObject.workouts.add(workout(LocalDate.of(2026, 11, 20),
+        historyDataAccessObject.workouts.add(earlierWorkout(LocalDate.of(2026, 11, 20),
                 logged(BENCH_PRESS, new ExerciseSet(62.5, 8), new ExerciseSet(62.5, 7))));
-        historyDataAccessObject.workouts.add(workout(LocalDate.of(2026, 11, 13),
+        historyDataAccessObject.workouts.add(earlierWorkout(LocalDate.of(2026, 11, 13),
                 logged(BENCH_PRESS, new ExerciseSet(60.0, 8)),
                 logged(SQUAT, new ExerciseSet(100.0, 5), new ExerciseSet(100.0, 5))));
 
@@ -70,11 +57,11 @@ class StartWorkoutInteractorTest {
 
         assertEquals(new StartWorkoutOutputData(pushDay.getWorkoutPlanID(), "Push Day", List.of(
                 new StartWorkoutOutputData.ExerciseEntry("0025", "Barbell Bench Press", 3, 8, 60.0, List.of(
-                        new StartWorkoutOutputData.SetEntry(62.5, 8),
-                        new StartWorkoutOutputData.SetEntry(62.5, 7))),
+                        new SetEntry(62.5, 8),
+                        new SetEntry(62.5, 7))),
                 new StartWorkoutOutputData.ExerciseEntry("0043", "Barbell Squat", 5, 5, null, List.of(
-                        new StartWorkoutOutputData.SetEntry(100.0, 5),
-                        new StartWorkoutOutputData.SetEntry(100.0, 5))))),
+                        new SetEntry(100.0, 5),
+                        new SetEntry(100.0, 5))))),
                 presenter.success);
         assertEquals(USER.getUserID(), historyDataAccessObject.requestedOwnerId);
         assertNull(presenter.error);
@@ -91,21 +78,20 @@ class StartWorkoutInteractorTest {
 
     @Test
     void successSkipsWorkoutWithoutSetsTest() {
-        historyDataAccessObject.workouts.add(workout(LocalDate.of(2026, 11, 20), logged(BENCH_PRESS)));
-        historyDataAccessObject.workouts.add(workout(LocalDate.of(2026, 11, 13),
+        historyDataAccessObject.workouts.add(earlierWorkout(LocalDate.of(2026, 11, 20), logged(BENCH_PRESS)));
+        historyDataAccessObject.workouts.add(earlierWorkout(LocalDate.of(2026, 11, 13),
                 logged(BENCH_PRESS, new ExerciseSet(60.0, 8))));
 
         start(pushDay.getWorkoutPlanID());
 
-        assertEquals(List.of(new StartWorkoutOutputData.SetEntry(60.0, 8)),
+        assertEquals(List.of(new SetEntry(60.0, 8)),
                 presenter.success.exercises().get(0).lastSets());
         assertNull(presenter.error);
     }
 
     @Test
     void successStarterPlanTest() {
-        WorkoutPlan starterPlan = new WorkoutPlan(UUID.randomUUID(), "Beginner Full Body", UUID.randomUUID(),
-                List.of(new PlannedExercise(SQUAT, 3, 10, null)), false, true, null);
+        WorkoutPlan starterPlan = starterPlan();
         planDataAccessObject.plans.put(starterPlan.getWorkoutPlanID(), starterPlan);
 
         start(starterPlan.getWorkoutPlanID());
@@ -143,8 +129,7 @@ class StartWorkoutInteractorTest {
 
     @Test
     void failureSomeoneElsesPlanTest() {
-        WorkoutPlan friendsPlan = new WorkoutPlan(UUID.randomUUID(), "Pull Day", UUID.randomUUID(),
-                List.of(new PlannedExercise(SQUAT, 3, 10, null)), false, false, null);
+        WorkoutPlan friendsPlan = someoneElsesPlan();
         planDataAccessObject.plans.put(friendsPlan.getWorkoutPlanID(), friendsPlan);
 
         start(friendsPlan.getWorkoutPlanID());

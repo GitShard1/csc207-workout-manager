@@ -1,9 +1,6 @@
 package use_case.workout_common;
 
-import entity.BodyPart;
-import entity.Exercise;
 import entity.PlannedExercise;
-import entity.User;
 import entity.WorkoutPlan;
 import org.junit.jupiter.api.Test;
 
@@ -11,11 +8,12 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static use_case.workout_common.WorkoutFixtures.SQUAT;
+import static use_case.workout_common.WorkoutFixtures.USER;
+import static use_case.workout_common.WorkoutFixtures.someoneElsesPlan;
+import static use_case.workout_common.WorkoutFixtures.starterPlan;
 
 class WorkoutPlanAccessValidatorTest {
-    private static final User USER = new User(UUID.randomUUID(), "amgalan", "Amgalan");
-    private static final Exercise SQUAT = new Exercise("0043", "Barbell Squat", "A leg exercise.",
-            BodyPart.UPPER_LEGS, "Quads", List.of(), "Barbell", "compound", List.of());
     private static final List<PlannedExercise> EXERCISES = List.of(new PlannedExercise(SQUAT, 5, 5, 100.0));
 
     @Test
@@ -29,8 +27,7 @@ class WorkoutPlanAccessValidatorTest {
 
     @Test
     void starterPlanTest() {
-        WorkoutPlan starterPlan = new WorkoutPlan(UUID.randomUUID(), "Beginner Full Body", UUID.randomUUID(),
-                EXERCISES, false, true, null);
+        WorkoutPlan starterPlan = starterPlan();
 
         assertEquals("", WorkoutPlanAccessValidator.checkStartable(USER, starterPlan));
     }
@@ -42,8 +39,7 @@ class WorkoutPlanAccessValidatorTest {
 
     @Test
     void failureSomeoneElsesPlanTest() {
-        WorkoutPlan friendsPlan = new WorkoutPlan(UUID.randomUUID(), "Pull Day", UUID.randomUUID(), EXERCISES,
-                false, false, null);
+        WorkoutPlan friendsPlan = someoneElsesPlan();
 
         assertEquals("You can only log workouts from your own plans.",
                 WorkoutPlanAccessValidator.checkStartable(USER, friendsPlan));

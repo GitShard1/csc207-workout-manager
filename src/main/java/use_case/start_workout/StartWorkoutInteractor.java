@@ -1,7 +1,6 @@
 package use_case.start_workout;
 
 import entity.Exercise;
-import entity.ExerciseSet;
 import entity.LoggedExercise;
 import entity.PlannedExercise;
 import entity.User;
@@ -9,6 +8,8 @@ import entity.Workout;
 import entity.WorkoutPlan;
 import use_case.account.CurrentUserDataAccessInterface;
 import use_case.plan_common.PlanStorageUnavailableException;
+import use_case.workout_common.SetEntries;
+import use_case.workout_common.SetEntry;
 import use_case.workout_common.WorkoutPlanAccessValidator;
 import use_case.workout_common.WorkoutStorageUnavailableException;
 
@@ -89,23 +90,15 @@ public class StartWorkoutInteractor implements StartWorkoutInputBoundary {
      Returns the exercise's completed sets from the newest workout that has any, or an empty list when the user has
      never done it.
      */
-    private List<StartWorkoutOutputData.SetEntry> findLastSets(List<Workout> workouts, String exerciseId) {
+    private List<SetEntry> findLastSets(List<Workout> workouts, String exerciseId) {
         for (Workout workout : workouts) {
             for (LoggedExercise loggedExercise : workout.getExercises()) {
                 final boolean sameExercise = loggedExercise.getExercise().getExerciseID().equals(exerciseId);
                 if (sameExercise && !loggedExercise.getCompletedSets().isEmpty()) {
-                    return toSetEntries(loggedExercise.getCompletedSets());
+                    return SetEntries.from(loggedExercise.getCompletedSets());
                 }
             }
         }
         return List.of();
-    }
-
-    private List<StartWorkoutOutputData.SetEntry> toSetEntries(List<ExerciseSet> sets) {
-        final ArrayList<StartWorkoutOutputData.SetEntry> setEntries = new ArrayList<>();
-        for (ExerciseSet set : sets) {
-            setEntries.add(new StartWorkoutOutputData.SetEntry(set.getWeight(), set.getReps()));
-        }
-        return setEntries;
     }
 }
