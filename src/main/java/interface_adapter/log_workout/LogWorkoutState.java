@@ -25,15 +25,17 @@ public record LogWorkoutState(UUID planId, String planName, List<ExerciseRow> ex
         return new LogWorkoutState(planId, planName, exercises, null, true);
     }
 
-    /** {@code lastTime} is empty when the user has never done the exercise. */
-    public record ExerciseRow(String exerciseId, String exerciseName, String target, String lastTime,
-                              List<SetRow> sets) {
+    /** {@code details} is the one line under the exercise name: body part, equipment, target and last time. */
+    public record ExerciseRow(String exerciseId, String exerciseName, String details, List<SetRow> sets) {
         public ExerciseRow {
             sets = List.copyOf(sets);
         }
     }
 
-    /** The starting text for one set row on screen. */
-    public record SetRow(String weight, String reps) {
+    /**
+     * One set row on screen. {@code previous} is last time's set at this position, or empty when there isn't one.
+     * A null {@code weight} or {@code reps} is a blank cell.
+     */
+    public record SetRow(String previous, Double weight, Integer reps) {
     }
 }

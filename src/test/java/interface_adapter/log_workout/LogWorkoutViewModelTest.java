@@ -20,8 +20,8 @@ class LogWorkoutViewModelTest {
     @Test
     void showErrorKeepsTheExercisesAndNotifiesTest() {
         List<LogWorkoutState.ExerciseRow> exercises = List.of(
-                new LogWorkoutState.ExerciseRow("0025", "Barbell Bench Press", "3 x 8", "",
-                        List.of(new LogWorkoutState.SetRow("", "8"))));
+                new LogWorkoutState.ExerciseRow("0025", "Barbell Bench Press", "Chest - target 3 x 8",
+                        List.of(new LogWorkoutState.SetRow("", null, 8))));
         viewModel.setState(new LogWorkoutState(UUID.randomUUID(), "Push Day", exercises, null, false));
         int[] notifications = {0};
         viewModel.addPropertyChangeListener(event -> notifications[0]++);

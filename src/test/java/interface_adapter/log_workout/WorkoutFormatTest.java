@@ -29,6 +29,14 @@ class WorkoutFormatTest {
     }
 
     @Test
+    void bodyPartTest() {
+        assertEquals("Upper legs", WorkoutFormat.bodyPart("UPPER_LEGS"));
+        assertEquals("Back", WorkoutFormat.bodyPart("BACK"));
+        assertEquals("", WorkoutFormat.bodyPart(null));
+        assertEquals("", WorkoutFormat.bodyPart("  "));
+    }
+
+    @Test
     void targetTest() {
         assertEquals("3 x 8 at 60 kg", WorkoutFormat.target(3, 8, 60.0));
         assertEquals("5 x 5", WorkoutFormat.target(5, 5, null));

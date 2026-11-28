@@ -26,8 +26,8 @@ class FinishWorkoutPresenterTest {
             summaryViewModel, viewManagerModel);
 
     private final List<LogWorkoutState.ExerciseRow> exercises = List.of(
-            new LogWorkoutState.ExerciseRow("0025", "Barbell Bench Press", "3 x 8 at 60 kg", "",
-                    List.of(new LogWorkoutState.SetRow("60", "8"))));
+            new LogWorkoutState.ExerciseRow("0025", "Barbell Bench Press", "Chest - target 3 x 8 at 60 kg",
+                    List.of(new LogWorkoutState.SetRow("", 60.0, 8))));
 
     private void startWorkout() {
         logWorkoutViewModel.setState(new LogWorkoutState(UUID.randomUUID(), "Push Day", exercises, null, false));

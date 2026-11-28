@@ -56,12 +56,11 @@ class StartWorkoutInteractorTest {
         start(pushDay.getWorkoutPlanID());
 
         assertEquals(new StartWorkoutOutputData(pushDay.getWorkoutPlanID(), "Push Day", List.of(
-                new StartWorkoutOutputData.ExerciseEntry("0025", "Barbell Bench Press", 3, 8, 60.0, List.of(
-                        new SetEntry(62.5, 8),
-                        new SetEntry(62.5, 7))),
-                new StartWorkoutOutputData.ExerciseEntry("0043", "Barbell Squat", 5, 5, null, List.of(
-                        new SetEntry(100.0, 5),
-                        new SetEntry(100.0, 5))))),
+                new StartWorkoutOutputData.ExerciseEntry("0025", "Barbell Bench Press", "CHEST", "Barbell", 3, 8,
+                        60.0, List.of(new SetEntry(62.5, 8), new SetEntry(62.5, 7)), LocalDate.of(2026, 11, 20)),
+                new StartWorkoutOutputData.ExerciseEntry("0043", "Barbell Squat", "UPPER_LEGS", "Barbell", 5, 5,
+                        null, List.of(new SetEntry(100.0, 5), new SetEntry(100.0, 5)),
+                        LocalDate.of(2026, 11, 13)))),
                 presenter.success);
         assertEquals(USER.getUserID(), historyDataAccessObject.requestedOwnerId);
         assertNull(presenter.error);
@@ -73,6 +72,8 @@ class StartWorkoutInteractorTest {
 
         assertEquals(List.of(), presenter.success.exercises().get(0).lastSets());
         assertEquals(List.of(), presenter.success.exercises().get(1).lastSets());
+        assertNull(presenter.success.exercises().get(0).lastDate());
+        assertNull(presenter.success.exercises().get(1).lastDate());
         assertNull(presenter.error);
     }
 
@@ -86,6 +87,7 @@ class StartWorkoutInteractorTest {
 
         assertEquals(List.of(new SetEntry(60.0, 8)),
                 presenter.success.exercises().get(0).lastSets());
+        assertEquals(LocalDate.of(2026, 11, 13), presenter.success.exercises().get(0).lastDate());
         assertNull(presenter.error);
     }
 

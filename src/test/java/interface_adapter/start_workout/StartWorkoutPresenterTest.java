@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import use_case.start_workout.StartWorkoutOutputData;
 import use_case.workout_common.SetEntry;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -23,16 +24,21 @@ class StartWorkoutPresenterTest {
 
     private final UUID planId = UUID.randomUUID();
 
-    private StartWorkoutOutputData.ExerciseEntry benchPress(List<SetEntry> lastSets) {
-        return new StartWorkoutOutputData.ExerciseEntry("0025", "Barbell Bench Press", 3, 8, 60.0, lastSets);
+    private StartWorkoutOutputData.ExerciseEntry benchPress(List<SetEntry> lastSets, LocalDate lastDate) {
+        return new StartWorkoutOutputData.ExerciseEntry("0025", "Barbell Bench Press", "CHEST", "Barbell", 3, 8,
+                60.0, lastSets, lastDate);
+    }
+
+    private StartWorkoutOutputData workout(StartWorkoutOutputData.ExerciseEntry... entries) {
+        return new StartWorkoutOutputData(planId, "Push Day", List.of(entries));
     }
 
     @Test
     void successTest() {
-        presenter.prepareSuccessView(new StartWorkoutOutputData(planId, "Push Day", List.of(
-                benchPress(List.of(new SetEntry(60.0, 8),
-                        new SetEntry(62.5, 6))),
-                new StartWorkoutOutputData.ExerciseEntry("0043", "Barbell Squat", 5, 5, null, List.of()))));
+        presenter.prepareSuccessView(workout(
+                benchPress(List.of(new SetEntry(60.0, 8), new SetEntry(62.5, 6)), LocalDate.of(2026, 11, 20)),
+                new StartWorkoutOutputData.ExerciseEntry("0043", "Barbell Squat", "UPPER_LEGS", "Barbell", 5, 5,
+                        null, List.of(), null)));
 
         LogWorkoutState state = logWorkoutViewModel.getState();
         assertEquals(planId, state.planId());
@@ -44,52 +50,56 @@ class StartWorkoutPresenterTest {
         LogWorkoutState.ExerciseRow bench = state.exercises().get(0);
         assertEquals("0025", bench.exerciseId());
         assertEquals("Barbell Bench Press", bench.exerciseName());
-        assertEquals("3 x 8 at 60 kg", bench.target());
-        assertEquals("60 kg x 8, 62.5 kg x 6", bench.lastTime());
+        assertEquals("Chest - Barbell - target 3 x 8 at 60 kg - last time Nov 20", bench.details());
         assertEquals(3, bench.sets().size());
 
         LogWorkoutState.ExerciseRow squat = state.exercises().get(1);
-        assertEquals("5 x 5", squat.target());
-        assertEquals("", squat.lastTime());
+        assertEquals("Upper legs - Barbell - target 5 x 5", squat.details());
         assertEquals(5, squat.sets().size());
 
         assertEquals(LogWorkoutViewModel.VIEW_NAME, viewManagerModel.getState());
     }
 
     @Test
-    void successPrefillTest() {
-        presenter.prepareSuccessView(new StartWorkoutOutputData(planId, "Push Day", List.of(
-                benchPress(List.of(new SetEntry(62.5, 6),
-                        new SetEntry(65.0, 5))))));
+    void detailsSkipNullEquipmentTest() {
+        presenter.prepareSuccessView(workout(new StartWorkoutOutputData.ExerciseEntry("0001", "Push-up", "CHEST",
+                null, 3, 10, null, List.of(), null)));
 
-        assertEquals(List.of(new LogWorkoutState.SetRow("62.5", "6"), new LogWorkoutState.SetRow("65", "5"),
-                new LogWorkoutState.SetRow("60", "8")), logWorkoutViewModel.getState().exercises().get(0).sets());
+        assertEquals("Chest - target 3 x 10", logWorkoutViewModel.getState().exercises().get(0).details());
+    }
+
+    @Test
+    void successPrefillTest() {
+        presenter.prepareSuccessView(workout(benchPress(
+                List.of(new SetEntry(62.5, 6), new SetEntry(65.0, 5)), LocalDate.of(2026, 11, 20))));
+
+        assertEquals(List.of(new LogWorkoutState.SetRow("62.5 kg x 6", 62.5, 6),
+                new LogWorkoutState.SetRow("65 kg x 5", 65.0, 5),
+                new LogWorkoutState.SetRow("", 60.0, 8)), logWorkoutViewModel.getState().exercises().get(0).sets());
     }
 
     @Test
     void successNeverDoneTest() {
-        presenter.prepareSuccessView(new StartWorkoutOutputData(planId, "Push Day",
-                List.of(benchPress(List.of()))));
+        presenter.prepareSuccessView(workout(benchPress(List.of(), null)));
 
         LogWorkoutState.ExerciseRow row = logWorkoutViewModel.getState().exercises().get(0);
-        assertEquals("", row.lastTime());
-        assertEquals(List.of(new LogWorkoutState.SetRow("60", "8"), new LogWorkoutState.SetRow("60", "8"),
-                new LogWorkoutState.SetRow("60", "8")), row.sets());
+        assertEquals("Chest - Barbell - target 3 x 8 at 60 kg", row.details());
+        assertEquals(List.of(new LogWorkoutState.SetRow("", 60.0, 8), new LogWorkoutState.SetRow("", 60.0, 8),
+                new LogWorkoutState.SetRow("", 60.0, 8)), row.sets());
     }
 
     @Test
     void successNoTargetWeightTest() {
-        presenter.prepareSuccessView(new StartWorkoutOutputData(planId, "Leg Day", List.of(
-                new StartWorkoutOutputData.ExerciseEntry("0043", "Barbell Squat", 2, 5, null, List.of()))));
+        presenter.prepareSuccessView(workout(new StartWorkoutOutputData.ExerciseEntry("0043", "Barbell Squat",
+                "UPPER_LEGS", "Barbell", 2, 5, null, List.of(), null)));
 
-        assertEquals(List.of(new LogWorkoutState.SetRow("", "5"), new LogWorkoutState.SetRow("", "5")),
+        assertEquals(List.of(new LogWorkoutState.SetRow("", null, 5), new LogWorkoutState.SetRow("", null, 5)),
                 logWorkoutViewModel.getState().exercises().get(0).sets());
     }
 
     @Test
     void failTest() {
-        presenter.prepareSuccessView(new StartWorkoutOutputData(planId, "Push Day",
-                List.of(benchPress(List.of()))));
+        presenter.prepareSuccessView(workout(benchPress(List.of(), null)));
         viewManagerModel.setState(HomeViewModel.VIEW_NAME);
 
         presenter.prepareFailView("Plan not found.");

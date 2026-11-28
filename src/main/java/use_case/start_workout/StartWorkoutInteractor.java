@@ -13,6 +13,7 @@ import use_case.workout_common.SetEntry;
 import use_case.workout_common.WorkoutPlanAccessValidator;
 import use_case.workout_common.WorkoutStorageUnavailableException;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -77,9 +78,16 @@ public class StartWorkoutInteractor implements StartWorkoutInputBoundary {
         final ArrayList<StartWorkoutOutputData.ExerciseEntry> exerciseEntries = new ArrayList<>();
         for (PlannedExercise plannedExercise : workoutPlan.getExercises()) {
             final Exercise exercise = plannedExercise.getExercise();
+            final LastTime lastTime = findLastTime(workouts, exercise.getExerciseID());
+            List<SetEntry> lastSets = List.of();
+            LocalDate lastDate = null;
+            if (lastTime != null) {
+                lastSets = lastTime.sets();
+                lastDate = lastTime.date();
+            }
             exerciseEntries.add(new StartWorkoutOutputData.ExerciseEntry(exercise.getExerciseID(), exercise.getName(),
-                    plannedExercise.getTargetSets(), plannedExercise.getTargetReps(),
-                    plannedExercise.getTargetWeight(), findLastSets(workouts, exercise.getExerciseID())));
+                    exercise.getBodyPart().name(), exercise.getEquipment(), plannedExercise.getTargetSets(),
+                    plannedExercise.getTargetReps(), plannedExercise.getTargetWeight(), lastSets, lastDate));
         }
 
         presenter.prepareSuccessView(new StartWorkoutOutputData(workoutPlan.getWorkoutPlanID(),
@@ -87,18 +95,21 @@ public class StartWorkoutInteractor implements StartWorkoutInputBoundary {
     }
 
     /**
-     Returns the exercise's completed sets from the newest workout that has any, or an empty list when the user has
-     never done it.
+     Returns the date and completed sets of the exercise from the newest workout that has any, or null when the user
+     has never done it.
      */
-    private List<SetEntry> findLastSets(List<Workout> workouts, String exerciseId) {
+    private LastTime findLastTime(List<Workout> workouts, String exerciseId) {
         for (Workout workout : workouts) {
             for (LoggedExercise loggedExercise : workout.getExercises()) {
                 final boolean sameExercise = loggedExercise.getExercise().getExerciseID().equals(exerciseId);
                 if (sameExercise && !loggedExercise.getCompletedSets().isEmpty()) {
-                    return SetEntries.from(loggedExercise.getCompletedSets());
+                    return new LastTime(workout.getDate(), SetEntries.from(loggedExercise.getCompletedSets()));
                 }
             }
         }
-        return List.of();
+        return null;
+    }
+
+    private record LastTime(LocalDate date, List<SetEntry> sets) {
     }
 }

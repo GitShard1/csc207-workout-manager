@@ -5,6 +5,7 @@ import use_case.workout_common.SetEntry;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /** Turns weights, sets and targets into the text the workout screens show. */
 public final class WorkoutFormat {
@@ -25,6 +26,14 @@ public final class WorkoutFormat {
             formattedSets.add(set(setEntry.weight(), setEntry.reps()));
         }
         return String.join(", ", formattedSets);
+    }
+
+    public static String bodyPart(String name) {
+        if (name == null || name.isBlank()) {
+            return "";
+        }
+        final String spaced = name.replace('_', ' ').toLowerCase(Locale.ENGLISH);
+        return Character.toUpperCase(spaced.charAt(0)) + spaced.substring(1);
     }
 
     public static String target(int sets, int reps, Double kg) {

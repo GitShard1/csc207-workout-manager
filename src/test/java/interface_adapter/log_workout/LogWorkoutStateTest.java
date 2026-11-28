@@ -14,8 +14,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class LogWorkoutStateTest {
     private final UUID planId = UUID.randomUUID();
     private final List<LogWorkoutState.ExerciseRow> exercises = List.of(
-            new LogWorkoutState.ExerciseRow("0025", "Barbell Bench Press", "3 x 8 at 60 kg", "60 kg x 8",
-                    List.of(new LogWorkoutState.SetRow("60", "8"), new LogWorkoutState.SetRow("60", "8"))));
+            new LogWorkoutState.ExerciseRow("0025", "Barbell Bench Press", "Chest - Barbell - target 3 x 8",
+                    List.of(new LogWorkoutState.SetRow("60 kg x 8", 60.0, 8),
+                            new LogWorkoutState.SetRow("", 60.0, 8))));
     private final LogWorkoutState state = new LogWorkoutState(planId, "Push Day", exercises, null, false);
 
     @Test
@@ -65,12 +66,13 @@ class LogWorkoutStateTest {
 
     @Test
     void setRowsAreCopiedTest() {
-        ArrayList<LogWorkoutState.SetRow> setRows = new ArrayList<>(List.of(new LogWorkoutState.SetRow("60", "8")));
+        ArrayList<LogWorkoutState.SetRow> setRows = new ArrayList<>(
+                List.of(new LogWorkoutState.SetRow("", 60.0, 8)));
         LogWorkoutState.ExerciseRow row = new LogWorkoutState.ExerciseRow("0025", "Barbell Bench Press",
-                "3 x 8 at 60 kg", "", setRows);
+                "Chest - Barbell", setRows);
 
         setRows.clear();
 
-        assertEquals(List.of(new LogWorkoutState.SetRow("60", "8")), row.sets());
+        assertEquals(List.of(new LogWorkoutState.SetRow("", 60.0, 8)), row.sets());
     }
 }
