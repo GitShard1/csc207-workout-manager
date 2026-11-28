@@ -8,6 +8,7 @@ import use_case.create_plan.CreatePlanDataAccessInterface;
 import use_case.delete_plan.DeletePlanDataAccessInterface;
 import use_case.edit_plan.EditPlanDataAccessInterface;
 import use_case.open_plan.OpenPlanDataAccessInterface;
+import use_case.plan_common.AccountBoundPlanDataAccessInterface;
 import use_case.plan_common.PlanStorageUnavailableException;
 
 import java.io.IOException;
@@ -19,7 +20,7 @@ import static data_access.SupabaseJson.parse;
 
 /** Stores plans in the {@code workout_plans} table, one row per plan with its exercises copied into it. */
 public final class SupabasePlanDao implements CreatePlanDataAccessInterface, OpenPlanDataAccessInterface,
-        EditPlanDataAccessInterface, DeletePlanDataAccessInterface {
+        EditPlanDataAccessInterface, DeletePlanDataAccessInterface, AccountBoundPlanDataAccessInterface {
     private static final String COLUMNS = "id,owner_id,name,exercises,workout_completed,is_preset,copied_from_user_id";
 
     private final SupabaseClient client;
@@ -33,6 +34,16 @@ public final class SupabasePlanDao implements CreatePlanDataAccessInterface, Ope
     @Override
     public WorkoutPlan getById(UUID planId) throws PlanStorageUnavailableException {
         final String token = session.accessToken().orElseThrow(SupabasePlanDao::noSession);
+        return load(planId, token);
+    }
+
+    @Override
+    public WorkoutPlan getByIdFor(UUID viewer, UUID planId) throws PlanStorageUnavailableException {
+        final String token = session.accessTokenFor(viewer).orElseThrow(SupabasePlanDao::noSession);
+        return load(planId, token);
+    }
+
+    private WorkoutPlan load(UUID planId, String token) throws PlanStorageUnavailableException {
         final String path = "/rest/v1/workout_plans?select=" + COLUMNS + "&id=eq." + planId;
         final HttpResponse<String> response = send(() -> client.get(path, token));
         final JsonElement rows = parse(response.body());

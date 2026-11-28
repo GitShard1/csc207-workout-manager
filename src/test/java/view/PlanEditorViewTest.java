@@ -32,6 +32,7 @@ import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
@@ -92,6 +93,51 @@ class PlanEditorViewTest {
         });
         assertEquals(PLAN_ID, openedId);
         assertEquals(PlanEditorViewModel.VIEW_NAME, viewManagerModel.getState());
+    }
+
+    @Test
+    void ownedPlanSaveFailureKeepsPlanIdentityAndEditsForRetry() throws Exception {
+        final UUID owner = UUID.randomUUID();
+        final var attempts = new AtomicInteger();
+        onEdt(() -> {
+            view = new PlanEditorView(viewModel, viewManagerModel,
+                    (viewer, planId, name, ids, sets, reps, weights) -> {
+                        assertEquals(owner, viewer);
+                        assertEquals(PLAN_ID, planId);
+                        assertEquals("Edited copy", name);
+                        assertEquals(List.of("0025"), ids);
+                        assertEquals(List.of(4), sets);
+                        if (attempts.getAndIncrement() == 0) {
+                            return new PlanEditorState(null, "", List.of(), "Could not save your changes.");
+                        }
+                        return new PlanEditorState(planId, name, List.of(
+                                new PlanEditorState.ExerciseRow(ids.getFirst(), "Barbell Bench Press", sets.getFirst(),
+                                        reps.getFirst(), weights.getFirst())), null);
+                    }, () -> owner, () -> 0);
+            viewModel.setState(new PlanEditorState(PLAN_ID, "Push Day", List.of(
+                    new PlanEditorState.ExerciseRow("0025", "Barbell Bench Press", 3, 8, 60.0)), null));
+            viewManagerModel.setState(PlanEditorViewModel.VIEW_NAME);
+            field(view, "Plan name").setText("Edited copy");
+            table(view).getModel().setValueAt(4, 0, SETS_COLUMN);
+            button(view, "Save plan").doClick(0);
+        });
+        await(() -> button(view, "Save plan").isEnabled());
+        onEdt(() -> {
+            assertEquals("Error: Could not save your changes.", label(view, "Plan editor status").getText());
+            assertEquals(PLAN_ID, viewModel.getState().planId());
+            assertEquals("Edited copy", field(view, "Plan name").getText());
+            assertEquals(4, table(view).getModel().getValueAt(0, SETS_COLUMN));
+            button(view, "Save plan").doClick(0);
+        });
+        await(() -> button(view, "Save plan").isEnabled());
+        onEdt(() -> {
+            assertEquals("Plan saved.", label(view, "Plan editor status").getText());
+            assertEquals("Edited copy", viewModel.getState().name());
+            assertEquals(2, attempts.get());
+            button(view, "Back to Workout Plans").doClick(0);
+            assertEquals(WorkoutPlansView.VIEW_NAME, viewManagerModel.getState());
+            assertTrue(viewModel.getState().isNewPlan());
+        });
     }
 
     @Test

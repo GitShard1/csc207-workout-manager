@@ -31,3 +31,28 @@ Run the Java checks with JDK 25 using `./mvnw verify` (`.\mvnw.cmd verify` on Wi
 ```sh
 psql "$TEST_DATABASE_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/following_privacy.sql
 ```
+
+## Share a Workout Plan
+
+| Layer | Tests and fixtures |
+| --- | --- |
+| Unit | The sharing interactor uses a fake gateway to cover input normalization, invalid requests, and retry identity. |
+| Swing | The Workout Plans screen tests use real Swing controls and deterministic latches for request timing, view changes, and account switches. |
+| HTTP integration | The sharing DAO tests use the loopback Supabase server to inspect account-bound requests, decode results, and exercise failures. |
+| Database integration | Apply every migration to a disposable database. The SQL suites run with test accounts and role claims and roll back their fixtures. |
+| Hosted smoke | Opt in to `HostedWorkoutPlanSharingSmokeTest` against a migrated disposable Supabase project. The test uses two actual Auth sessions. |
+| Desktop end to end | Run the normal app against a migrated disposable project with three accounts. Follow the [desktop verification script](../../docs/workout-plan-sharing.md#desktop-end-to-end) and record observed results. |
+
+Run the Java suite with JDK 25. The ordinary GitHub Actions build exercises Java and loopback tests. Run the database, hosted smoke, and desktop checks separately.
+
+```sh
+./mvnw --batch-mode --no-transfer-progress clean verify
+psql "$TEST_DATABASE_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/following_privacy.sql
+psql "$TEST_DATABASE_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/workout_plans_privacy.sql
+psql "$TEST_DATABASE_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/workout_plan_sharing.sql
+node supabase/tests/workout_plan_sharing_concurrency.mjs
+```
+
+For the concurrency test, keep `TEST_DATABASE_URL` set to a direct connection or session pooler for the disposable database. The runner uses Node.js and separate `psql` sessions to verify that requests overlap before releasing the first transaction. It removes its seeded accounts and plans on exit.
+
+Record the tested commit, migration IDs, JDK and database versions, checks run, and assertion results. Use sanitized screenshots or reports if needed. Omit passwords, access tokens, and raw share codes.

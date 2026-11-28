@@ -17,6 +17,7 @@ import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.ListSelectionModel;
 import javax.swing.border.EmptyBorder;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
@@ -26,7 +27,10 @@ import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.Insets;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
+import java.util.function.LongSupplier;
+import java.util.function.Supplier;
 
 /** The View for the plan editor. Used to create a new plan, or to change an existing one. */
 public class PlanEditorView extends JPanel {
@@ -40,6 +44,8 @@ public class PlanEditorView extends JPanel {
     private final CreatePlanController createPlanController;
     private final EditPlanController editPlanController;
     private final ViewManagerModel viewManagerModel;
+    private final EditOwnedPlan editOwnedPlan;
+    private final PlanViewRequests ownedRequests;
 
     private final JLabel title = new JLabel("New plan");
     private final JTextField nameField = new JTextField(24);
@@ -72,11 +78,34 @@ public class PlanEditorView extends JPanel {
 
     public PlanEditorView(PlanEditorViewModel viewModel, CreatePlanController createPlanController,
                           EditPlanController editPlanController, ViewManagerModel viewManagerModel) {
+        this(viewModel, createPlanController, editPlanController, viewManagerModel, null, null);
+    }
+
+    /** Opens the existing editor for already saved plans and scopes its saves to the current sign-in. */
+    public PlanEditorView(PlanEditorViewModel viewModel, ViewManagerModel viewManagerModel, EditOwnedPlan editOwnedPlan,
+                          Supplier<UUID> currentUser, LongSupplier sessionGeneration) {
+        this(viewModel, null, null, viewManagerModel, editOwnedPlan,
+                new PlanViewRequests(currentUser, sessionGeneration));
+        cancelButton.setText("Back to Workout Plans");
+        viewManagerModel.addPropertyChangeListener(event -> SwingThreads.onEdt(() -> {
+            if (!PlanEditorViewModel.VIEW_NAME.equals(event.getNewValue())) {
+                ownedRequests.invalidate();
+                viewModel.setState(PlanEditorState.empty());
+                setBusy(false);
+            }
+        }));
+    }
+
+    private PlanEditorView(PlanEditorViewModel viewModel, CreatePlanController createPlanController,
+                           EditPlanController editPlanController, ViewManagerModel viewManagerModel,
+                           EditOwnedPlan editOwnedPlan, PlanViewRequests ownedRequests) {
         super(new BorderLayout(0, 14));
         this.viewModel = viewModel;
         this.createPlanController = createPlanController;
         this.editPlanController = editPlanController;
         this.viewManagerModel = viewManagerModel;
+        this.editOwnedPlan = editOwnedPlan;
+        this.ownedRequests = ownedRequests;
         setBorder(new EmptyBorder(16, 20, 16, 20));
 
         add(title, BorderLayout.NORTH);
@@ -134,6 +163,9 @@ public class PlanEditorView extends JPanel {
 
         exerciseTable.setName("Plan exercises");
         exerciseTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        final var renderer = new DefaultTableCellRenderer();
+        renderer.putClientProperty("html.disable", true);
+        exerciseTable.setDefaultRenderer(String.class, renderer);
         exerciseTable.removeColumn(exerciseTable.getColumnModel().getColumn(ID_COLUMN));
         exercises.add(new JScrollPane(exerciseTable), BorderLayout.CENTER);
 
@@ -209,13 +241,37 @@ public class PlanEditorView extends JPanel {
         }
 
         final PlanEditorState state = viewModel.getState();
-        if (state.isNewPlan()) {
+        if (editOwnedPlan != null) {
+            saveOwnedPlan(state.planId(), name, exerciseIds, sets, reps, weights);
+        }
+        else if (state.isNewPlan()) {
             run("Saving plan...", () -> createPlanController.execute(name, exerciseIds, sets, reps, weights));
         }
         else {
             final UUID planId = state.planId();
             run("Saving plan...", () -> editPlanController.execute(planId, name, exerciseIds, sets, reps, weights));
         }
+    }
+
+    private void saveOwnedPlan(UUID planId, String name, List<String> exerciseIds, List<Integer> sets,
+                               List<Integer> reps, List<Double> weights) {
+        final PlanViewRequests.Request request = ownedRequests.begin();
+        if (request.viewer() == null || planId == null) {
+            status.setText("This plan is unavailable.");
+            return;
+        }
+        status.setText("Saving plan...");
+        setBusy(true);
+        ownedRequests.execute(request,
+                () -> editOwnedPlan.save(request.viewer(), planId, name, exerciseIds, sets, reps, weights),
+                state -> {
+                    if (state.error() == null) {
+                        viewModel.setState(state);
+                        status.setText("Plan saved.");
+                    } else {
+                        status.setText("Error: " + state.error());
+                    }
+                }, failure -> status.setText("Something went wrong. Please try again."), () -> setBusy(false));
     }
 
     private Integer countAt(int row, int column) {
@@ -227,6 +283,10 @@ public class PlanEditorView extends JPanel {
     }
 
     private void cancel() {
+        if (editOwnedPlan != null) {
+            viewManagerModel.setState(WorkoutPlansView.VIEW_NAME);
+            return;
+        }
         final boolean typedSomething = !nameField.getText().isBlank() || exerciseTableModel.getRowCount() > 0;
         if (viewModel.getState().isNewPlan() && typedSomething && !confirmDiscard()) {
             return;
@@ -279,7 +339,13 @@ public class PlanEditorView extends JPanel {
         removeButton.setEnabled(!busy);
         moveUpButton.setEnabled(!busy);
         moveDownButton.setEnabled(!busy);
-        cancelButton.setEnabled(!busy);
+        cancelButton.setEnabled(!busy || editOwnedPlan != null);
         saveButton.setEnabled(!busy);
+    }
+
+    @FunctionalInterface
+    public interface EditOwnedPlan {
+        PlanEditorState save(UUID viewer, UUID planId, String name, List<String> exerciseIds,
+                             List<Integer> sets, List<Integer> reps, List<Double> weights);
     }
 }

@@ -8,6 +8,8 @@ import entity.Exercise;
 import entity.PlannedExercise;
 import entity.User;
 import entity.WorkoutPlan;
+import interface_adapter.plan_editor.PlanEditorState;
+import interface_adapter.plan_sharing.SharedPlanEditorController;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -142,6 +144,57 @@ final class SupabasePlanDaoTest {
             assertEquals(expected.getTargetReps(), actual.getTargetReps());
             assertEquals(expected.getTargetWeight(), actual.getTargetWeight());
         }
+    }
+
+    @Test
+    void opensAndEditsTheCopyUsingItsStoredExerciseDetails() throws Exception {
+        final SharedPlanEditorController editor = new SharedPlanEditorController(dao, sessions);
+        server.enqueue(200, editorPlanRow());
+        server.enqueue(200, editorPlanRow());
+        server.enqueue(200, "false");
+        server.enqueue(200, "[{\"id\":\"" + PUSH_DAY.getWorkoutPlanID() + "\"}]");
+
+        final PlanEditorState opened = editor.open(OWNER_ID, PUSH_DAY.getWorkoutPlanID());
+        final PlanEditorState saved = editor.save(OWNER_ID, opened.planId(), "Copies",
+                List.of("0025"), List.of(4), List.of(12), List.of(65.0));
+
+        assertNull(opened.error());
+        assertNull(saved.error());
+        assertEquals(new PlanEditorState(opened.planId(), "Copies",
+                List.of(new PlanEditorState.ExerciseRow("0025", "Barbell Bench Press", 4, 12, 65.0)), null), saved);
+        assertEquals(PLAN_PATH + opened.planId(), server.takeCall().path());
+        assertEquals(PLAN_PATH + opened.planId(), server.takeCall().path());
+        assertEquals("/rest/v1/rpc/plan_name_taken", server.takeCall().path());
+        final LoopbackSupabase.Call update = server.takeCall();
+        assertEquals("PATCH", update.method());
+        assertEquals("Bearer owner.token", update.authorization());
+        final JsonObject body = JsonParser.parseString(update.body()).getAsJsonObject();
+        assertEquals("Copies", body.get("name").getAsString());
+        assertEquals(4, body.getAsJsonArray("exercises").get(0).getAsJsonObject().get("sets").getAsInt());
+    }
+
+    @Test
+    void anAccountSwitchDuringAnEditDiscardsTheWrite() throws Exception {
+        final SharedPlanEditorController editor = new SharedPlanEditorController(dao, sessions);
+        final User other = new User(UUID.randomUUID(), "other", "Other");
+        server.enqueue(200, editorPlanRow(),
+                () -> sessions.start(new AuthSession(other.getUserID(), "other.token"), other));
+
+        final PlanEditorState result = editor.save(OWNER_ID, PUSH_DAY.getWorkoutPlanID(), "Push Day",
+                List.of("0025"), List.of(4), List.of(12), List.of(65.0));
+
+        assertEquals("Your changes weren't saved. Please try again.", result.error());
+        assertEquals("Bearer owner.token", server.takeCall().authorization());
+        assertNull(server.unexpectedCall());
+        assertEquals("No user is logged in.", editor.open(OWNER_ID, PUSH_DAY.getWorkoutPlanID()).error());
+        assertNull(server.unexpectedCall());
+    }
+
+    private static String editorPlanRow() {
+        return """
+                [{"id":"%s","owner_id":"%s","name":"Push Day","exercises":[%s],
+                  "workout_completed":false,"is_preset":false,"copied_from_user_id":null}]
+                """.formatted(PUSH_DAY.getWorkoutPlanID(), OWNER_ID, BASIC_EXERCISE);
     }
 
     @Test
