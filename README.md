@@ -256,7 +256,7 @@ The user opens a friend's profile and copies one of their plans. The system save
 | Demeng | Register an Account, Log In, Log Out |
 | Eric | Follow Accounts |
 | David | Find an Exercise |
-| Amgalan | Create a Workout Plan, Edit a Workout Plan, Delete a Workout Plan |
+| Amgalan | Create a Workout Plan, Edit a Workout Plan, Delete a Workout Plan, Log a Workout |
 
 ---
 
