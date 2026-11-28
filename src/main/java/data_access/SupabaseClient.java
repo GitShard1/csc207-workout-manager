@@ -97,6 +97,14 @@ public final class SupabaseClient {
                 .PUT(HttpRequest.BodyPublishers.ofString(body.toString())).build());
     }
 
+    /** Same as post, but PATCH, and returns the changed rows so callers can tell whether anything changed. */
+    HttpResponse<String> patch(String path, JsonObject body, String accessToken)
+            throws IOException, InterruptedException {
+        return send(request(path, accessToken).header("Content-Type", "application/json")
+                .header("Prefer", "return=representation")
+                .method("PATCH", HttpRequest.BodyPublishers.ofString(body.toString())).build());
+    }
+
     private HttpRequest.Builder request(String path, String accessToken) {
         final HttpRequest.Builder request = HttpRequest.newBuilder(projectUrl.resolve(path))
                 .header("apikey", publishableKey)

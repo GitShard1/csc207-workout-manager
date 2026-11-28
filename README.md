@@ -333,7 +333,7 @@ Instance Attributes:
 
 **Documentation:** [Auth](https://supabase.com/docs/guides/auth/passwords), [Data REST API](https://supabase.com/docs/guides/api)
 
-Supabase Auth handles registration, login, logout, and password changes. The `profiles` table stores usernames and display names. Following uses `find_follow_profile` for an exact username lookup and `list_following` for the signed-in owner's bookmarks. Supabase assigns the owner when the app saves a follow and limits reads and deletes to that owner's rows. Unfollow sends both account IDs to target one bookmark.
+Supabase Auth handles registration, login, logout, and password changes. The `profiles` table stores usernames and display names. Following uses `find_follow_profile` for an exact username lookup and `list_following` for the signed-in owner's bookmarks. Supabase assigns the owner when the app saves a follow and limits reads and deletes to that owner's rows. Unfollow sends both account IDs to target one bookmark. Workout plans are stored one row per plan in `workout_plans`, with each plan's exercises copied into the row, so opening a plan never calls WorkoutX. Supabase assigns each plan's owner, keeps starter plans read-only, and `plan_name_taken` checks the signed-in account's plan names.
 
 **API Name:** WorkoutX
 
@@ -394,8 +394,9 @@ You can also open `pom.xml` as a Maven project in your IDE and run `app.WorkoutM
 
 - `./mvnw test` checks style and runs the unit tests. `./mvnw verify` also writes a coverage report to `target/site/jacoco/index.html`.
 - GitHub Actions runs the same checks on pull requests and pushes to `main`.
-- Apply the [profile](supabase/migrations/20261123190718_account_profiles.sql), [Following](supabase/migrations/20261124190842_follow_accounts.sql), and [Unfollow](supabase/migrations/20261126233716_unfollow_accounts.sql) migrations in that order when setting up a Supabase project. Set `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` to use a different project.
+- Apply the [profile](supabase/migrations/20261123190718_account_profiles.sql), [Following](supabase/migrations/20261124190842_follow_accounts.sql), [Unfollow](supabase/migrations/20261126233716_unfollow_accounts.sql), and [workout plans](supabase/migrations/20261127200000_workout_plans.sql) migrations in that order when setting up a Supabase project. Set `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` to use a different project.
 - Following's unit tests use an in-memory DAO. Its HTTP tests use a loopback server. The [SQL privacy suite](supabase/tests/following_privacy.sql) checks ownership and database constraints in a migrated test project.
+- Plan storage's HTTP tests use the same loopback server. The [plan SQL privacy suite](supabase/tests/workout_plans_privacy.sql) checks plan ownership, starter plans, and name rules in a migrated test project.
 
 ### Using the signed-in user
 
