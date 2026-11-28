@@ -7,11 +7,14 @@ import entity.WorkoutPlan;
 import use_case.create_plan.CreatePlanDataAccessInterface;
 import use_case.delete_plan.DeletePlanDataAccessInterface;
 import use_case.edit_plan.EditPlanDataAccessInterface;
+import use_case.list_plans.ListPlansUserDataAccessInterface;
 import use_case.open_plan.OpenPlanDataAccessInterface;
 import use_case.plan_common.PlanStorageUnavailableException;
 
 import java.io.IOException;
 import java.net.http.HttpResponse;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import static data_access.SupabaseJson.object;
@@ -19,7 +22,7 @@ import static data_access.SupabaseJson.parse;
 
 /** Stores plans in the {@code workout_plans} table, one row per plan with its exercises copied into it. */
 public final class SupabasePlanDao implements CreatePlanDataAccessInterface, OpenPlanDataAccessInterface,
-        EditPlanDataAccessInterface, DeletePlanDataAccessInterface {
+        EditPlanDataAccessInterface, DeletePlanDataAccessInterface, ListPlansUserDataAccessInterface {
     private static final String COLUMNS = "id,owner_id,name,exercises,workout_completed,is_preset,copied_from_user_id";
 
     private final SupabaseClient client;
@@ -48,6 +51,29 @@ public final class SupabasePlanDao implements CreatePlanDataAccessInterface, Ope
         } catch (IllegalArgumentException exception) {
             throw new PlanStorageUnavailableException("A stored plan could not be read.", exception);
         }
+    }
+
+    // List Plans: every plan this user owns, for the Workout Plans page
+    @Override
+    public List<WorkoutPlan> getPlansFor(UUID ownerId) throws PlanStorageUnavailableException {
+        final String token = session.accessTokenFor(ownerId).orElseThrow(SupabasePlanDao::noSession);
+        final String path = "/rest/v1/workout_plans?select=" + COLUMNS + "&owner_id=eq." + ownerId;
+        final HttpResponse<String> response = send(() -> client.get(path, token));
+        final JsonElement rows = parse(response.body());
+        if (response.statusCode() != 200 || rows == null || !rows.isJsonArray()) {
+            throw new PlanStorageUnavailableException("The plans could not be loaded.", null);
+        }
+
+        final List<WorkoutPlan> plans = new ArrayList<>();
+        try {
+            for (JsonElement row : rows.getAsJsonArray()) {
+                plans.add(PlanJson.planFromRow(object(row)));
+            }
+        } catch (IllegalArgumentException exception) {
+            throw new PlanStorageUnavailableException("A stored plan could not be read.", exception);
+        }
+
+        return plans;
     }
 
     @Override
