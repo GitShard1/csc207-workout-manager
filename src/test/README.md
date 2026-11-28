@@ -31,3 +31,10 @@ Run the Java checks with JDK 25 using `./mvnw verify` (`.\mvnw.cmd verify` on Wi
 ```sh
 psql "$TEST_DATABASE_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/following_privacy.sql
 ```
+
+## Log a Workout
+
+- `use_case.workout_common.WorkoutFixtures` holds the shared test data for the workout use cases: a user, bench press and squat, the Push Day, starter and someone else's plans, and builders for earlier workouts and logged exercises.
+- `StartWorkoutInteractorTest` and `FinishWorkoutInteractorTest` use in-memory plan and workout DAOs and a recording presenter. They check ownership, starter plans, last time's sets and date, skipped exercises, invalid sets, personal records, and failures to load or save.
+- The controller and presenter tests check the use-case input and the resulting view states, including the discard prompt and what stays on screen after an error.
+- `LogWorkoutViewTest` and `WorkoutSummaryViewTest` use real Swing controls with the real presenters and scripted use cases. They check ticking and locking sets, the rest timer, adding and removing sets, switching exercises, finishing, discarding, and the summary.

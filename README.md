@@ -180,7 +180,25 @@ As a user, I want to change my password and other account settings so that my ac
 
 ### Log a Workout
 
-The user starts a workout from a plan, records the weight and reps of each set (with a rest timer between sets), and finishes. The system saves the workout and shows a summary with any new personal records.
+**Actor:** Signed-in user. **Precondition:** Signed in, with at least one plan. **Trigger:** The user starts a workout from one of their plans.
+
+**Success outcome:** The workout, with its date and every completed set, is saved to the user's history, and their personal records reflect it.
+
+1. The system shows each exercise in the plan with its target sets and reps, and the weight and reps the user did last time.
+2. The user records the weight and reps of each completed set. The system marks it done and starts a rest countdown.
+3. The user finishes the workout. The system saves it and shows a summary with any new personal records.
+
+**Extensions:**
+- At step 1, if the user has never done an exercise, the system shows its targets without previous numbers.
+- At step 1, if the plan can't be found or belongs to another user, or the user's plans or past workouts can't be reached, the system says so and no workout starts.
+- At step 2, if the weight or reps aren't numbers, the system explains the problem and doesn't record the set.
+- At step 2, the user can add an extra set, skip an exercise by leaving its sets unrecorded, or skip the rest countdown.
+- At step 3, if a recorded weight is negative or a set has fewer than 1 rep, the system says which set is wrong and keeps the sets on screen.
+- At step 3, if no sets were recorded, the system asks whether to discard the workout. If the user confirms, nothing is saved; otherwise they carry on.
+- At any step, the user can abandon the workout. The system asks them to confirm, and nothing is saved.
+- At step 3, if the workout can't be saved, the system says so and keeps the recorded sets on screen, and the user can try again.
+
+A new personal record is a heavier weight than the user has lifted for that exercise in any earlier workout. Skipped exercises aren't saved.
 
 ### Review Workout History and Personal Records
 
@@ -238,7 +256,7 @@ The user opens a friend's profile and copies one of their plans. The system save
 | Demeng | Register an Account, Log In, Log Out |
 | Eric | Follow Accounts |
 | David | Find an Exercise |
-| Amgalan | Create a Workout Plan, Edit a Workout Plan, Delete a Workout Plan |
+| Amgalan | Create a Workout Plan, Edit a Workout Plan, Delete a Workout Plan, Log a Workout |
 
 ---
 
