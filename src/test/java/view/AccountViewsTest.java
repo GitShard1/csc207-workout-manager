@@ -10,6 +10,9 @@ import interface_adapter.logout.LogOutPresenter;
 import interface_adapter.register.RegisterController;
 import interface_adapter.register.RegisterPresenter;
 import interface_adapter.register.RegisterViewModel;
+import interface_adapter.settings.ChangePasswordController;
+import interface_adapter.settings.ChangePasswordPresenter;
+import interface_adapter.settings.SettingsViewModel;
 import org.junit.jupiter.api.Test;
 import use_case.account.AccountProfile;
 import use_case.login.LogInFailure;
@@ -17,6 +20,7 @@ import use_case.login.LogInOutputData;
 import use_case.register.RegisterFailure;
 
 import javax.swing.JTextArea;
+import javax.swing.JToggleButton;
 import java.awt.Container;
 import java.util.UUID;
 
@@ -46,6 +50,8 @@ class AccountViewsTest {
     private LogInView logIn;
     private RegisterView register;
     private HomeView home;
+    private SettingsView settings;
+    private ViewManager views;
 
     @Test
     void rejectedRegistrationKeepsTheDetailsButNotThePasswords() throws Exception {
@@ -70,6 +76,42 @@ class AccountViewsTest {
             assertEquals("sam_1", field(register, "Username").getText());
             assertEquals("", field(register, "Password").getText());
             assertEquals("", field(register, "Confirm password").getText());
+            button(register, "Back to Log In").doClick(0);
+            assertTrue(logIn.isVisible());
+        });
+    }
+
+    @Test
+    void leavingSettingsThroughTheSidebarClearsThePasswordForm() throws Exception {
+        build(request -> { }, request -> { });
+        onEdt(() -> {
+            final SettingsViewModel settingsModel = new SettingsViewModel();
+            final ChangePasswordPresenter presenter = new ChangePasswordPresenter(settingsModel);
+            settings = new SettingsView(settingsModel, new ChangePasswordController(
+                    request -> presenter.prepareFailView("Incorrect current password.")));
+            views.addSignedInView(SettingsViewModel.VIEW_NAME, SettingsViewModel.TITLE, settings);
+
+            viewManagerModel.setState(HomeViewModel.VIEW_NAME);
+            find(views, JToggleButton.class, button -> SettingsViewModel.TITLE.equals(button.getText())).doClick(0);
+            assertTrue(settings.isVisible());
+            field(settings, "Current password").setText("old password");
+            field(settings, "New password").setText("new password");
+            field(settings, "Confirm new password").setText("new password");
+            button(settings, "Change Password").doClick(0);
+        });
+
+        await(() -> button(settings, "Change Password").isEnabled());
+        onEdt(() -> {
+            assertEquals("Error: Incorrect current password.", status(settings));
+            find(views, JToggleButton.class, button -> HomeViewModel.TITLE.equals(button.getText())).doClick(0);
+            assertTrue(home.isVisible());
+        });
+
+        await(() -> status(settings).isEmpty());
+        onEdt(() -> {
+            assertEquals("", field(settings, "Current password").getText());
+            assertEquals("", field(settings, "New password").getText());
+            assertEquals("", field(settings, "Confirm new password").getText());
         });
     }
 
@@ -120,12 +162,11 @@ class AccountViewsTest {
         onEdt(() -> {
             logIn = new LogInView(logInViewModel, new LogInController(logInUseCase), viewManagerModel);
             register = new RegisterView(registerViewModel, new RegisterController(registerUseCase), viewManagerModel);
-            home = new HomeView(homeViewModel, new LogOutController(logOutPresenter::prepareSuccessView),
-                    viewManagerModel);
-            final ViewManager views = new ViewManager(viewManagerModel);
+            home = new HomeView(homeViewModel, new LogOutController(logOutPresenter::prepareSuccessView));
+            views = new ViewManager(viewManagerModel);
             views.addView(LogInViewModel.VIEW_NAME, logIn);
             views.addView(RegisterViewModel.VIEW_NAME, register);
-            views.addView(HomeViewModel.VIEW_NAME, home);
+            views.addSignedInView(HomeViewModel.VIEW_NAME, HomeViewModel.TITLE, home);
         });
     }
 

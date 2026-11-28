@@ -20,6 +20,7 @@ import use_case.unfollow_account.UnfollowAccountInteractor;
 import javax.swing.JButton;
 import javax.swing.JList;
 import javax.swing.JPanel;
+import javax.swing.JToggleButton;
 import javax.swing.SwingUtilities;
 import java.util.ArrayList;
 import java.util.List;
@@ -53,6 +54,7 @@ class FollowingViewTest {
     private final ViewManagerModel viewManager = new ViewManagerModel(HomeViewModel.VIEW_NAME);
     private final FollowingFixture bookmarks = new FollowingFixture();
 
+    private ViewManager views;
     private HomeView home;
     private FollowingView following;
 
@@ -63,7 +65,7 @@ class FollowingViewTest {
             home = new HomeView(homeModel, new LogOutController(() -> {
                 currentUser.set(null);
                 viewManager.setState(LogInViewModel.VIEW_NAME);
-            }), viewManager);
+            }));
             homeModel.showSignedIn(AccountProfile.from(SAM));
             final FollowingViewModel followingModel = new FollowingViewModel();
             final var presenter = new FollowingPresenter(followingModel);
@@ -74,10 +76,10 @@ class FollowingViewTest {
             final var controller = new FollowingController(interactor, interactor, interactor, unfollow);
             following = new FollowingView(followingModel, controller, viewManager);
 
-            final ViewManager views = new ViewManager(viewManager);
-            views.addView(HomeViewModel.VIEW_NAME, home);
-            views.addView(FollowingViewModel.VIEW_NAME, following);
+            views = new ViewManager(viewManager);
             views.addView(LogInViewModel.VIEW_NAME, new JPanel());
+            views.addSignedInView(HomeViewModel.VIEW_NAME, "Dashboard", home);
+            views.addSignedInView(FollowingViewModel.VIEW_NAME, "Following", following);
         });
     }
 
@@ -104,7 +106,7 @@ class FollowingViewTest {
         onEdt(() -> {
             assertEquals("Already following", status());
             assertEquals(1, followingList().getModel().getSize());
-            button(following, "Back to Home").doClick(0);
+            sidebarButton("Dashboard").doClick(0);
             assertTrue(home.isVisible());
             assertEquals(0, followingList().getModel().getSize());
         });
@@ -169,7 +171,6 @@ class FollowingViewTest {
                 assertFalse(followButton().isEnabled());
                 assertFalse(button(following, "Search").isEnabled());
                 assertFalse(button(following, "Refresh").isEnabled());
-                assertFalse(button(following, "Back to Home").isEnabled());
                 assertFalse(field(following, "Username").isEnabled());
                 assertEquals("Saving follow...", status());
                 followButton().doClick(0);
@@ -183,7 +184,6 @@ class FollowingViewTest {
             assertEquals("Couldn't save the follow. Try again.", status());
             assertEquals(0, followingList().getModel().getSize());
             assertEquals("@alex_1 - Alex", label(following, "Account result").getText());
-            assertTrue(button(following, "Back to Home").isEnabled());
             bookmarks.failSave = false;
             followButton().doClick(0);
         });
@@ -223,7 +223,7 @@ class FollowingViewTest {
         await(() -> button(following, "Refresh").isEnabled());
         onEdt(() -> {
             assertOnlyCaseyIsBookmarked();
-            button(following, "Back to Home").doClick(0);
+            sidebarButton("Dashboard").doClick(0);
             button(home, "Log Out").doClick(0);
         });
         await(() -> LogInViewModel.VIEW_NAME.equals(viewManager.getState())
@@ -329,7 +329,6 @@ class FollowingViewTest {
         onEdt(() -> {
             assertEquals("Something went wrong. Try again.", status());
             assertTrue(button(following, "Refresh").isEnabled());
-            assertTrue(button(following, "Back to Home").isEnabled());
             bookmarks.failUnexpectedly = false;
             button(following, "Refresh").doClick(0);
         });
@@ -373,11 +372,11 @@ class FollowingViewTest {
         search("alex_1");
         onEdt(() -> {
             assertEquals("@alex_1 - Alex", followingList().getModel().getElementAt(0));
-            button(following, "Back to Home").doClick(0);
+            sidebarButton("Dashboard").doClick(0);
             button(home, "Log Out").doClick(0);
         });
         await(() -> LogInViewModel.VIEW_NAME.equals(viewManager.getState())
-                && button(home, "Following").isEnabled());
+                && button(home, "Log Out").isEnabled());
         onEdt(() -> {
             currentUser.set(CASEY);
             viewManager.setState(HomeViewModel.VIEW_NAME);
@@ -393,9 +392,63 @@ class FollowingViewTest {
         });
     }
 
+    @Test
+    void leavingThroughTheSidebarHidesTheAccountsFromTheNextUser() throws Exception {
+        bookmarks.saved.put(SAM.getUserID(), List.of(ALEX));
+        openFollowing();
+        search("alex_1");
+        onEdt(() -> {
+            sidebarButton("Dashboard").doClick(0);
+            button(home, "Log Out").doClick(0);
+        });
+        await(() -> LogInViewModel.VIEW_NAME.equals(viewManager.getState())
+                && button(home, "Log Out").isEnabled());
+        bookmarks.failList = true;
+        onEdt(() -> {
+            currentUser.set(CASEY);
+            viewManager.setState(HomeViewModel.VIEW_NAME);
+            sidebarButton("Following").doClick(0);
+        });
+        await(() -> button(following, "Search").isEnabled());
+
+        onEdt(() -> {
+            assertEquals("Couldn't load Following. Try again.", status());
+            assertEquals(0, followingList().getModel().getSize());
+            assertEquals("", label(following, "Account result").getText());
+            assertFalse(followButton().isVisible());
+            assertEquals("", field(following, "Username").getText());
+        });
+    }
+
+    @Test
+    void aLateLoadFromThePreviousAccountIsDroppedAndTheNewAccountLoadsItsOwn() throws Exception {
+        bookmarks.saved.put(SAM.getUserID(), List.of(ALEX));
+        bookmarks.saved.put(CASEY.getUserID(), List.of(AccountProfile.from(SAM)));
+        final CountDownLatch releaseSamsLoad = new CountDownLatch(1);
+        bookmarks.releaseList = releaseSamsLoad;
+
+        // Sam opens Following, but the load gets stuck on the network
+        onEdt(() -> sidebarButton("Following").doClick(0));
+        assertTrue(bookmarks.listStarted.await(5, TimeUnit.SECONDS));
+
+        // Casey takes over and opens Following while Sam's load is still stuck
+        onEdt(() -> {
+            sidebarButton("Dashboard").doClick(0);
+            currentUser.set(CASEY);
+            bookmarks.releaseList = null;
+            sidebarButton("Following").doClick(0);
+        });
+        releaseSamsLoad.countDown();
+
+        // Sam's late result is thrown away, and Casey's own bookmarks load
+        await(() -> button(following, "Search").isEnabled() && followingList().getModel().getSize() == 1
+                && "@sam_1 - Sam".equals(followingList().getModel().getElementAt(0)));
+        onEdt(() -> assertEquals("", label(following, "Account result").getText()));
+    }
+
     private void openFollowing() throws Exception {
         onEdt(() -> {
-            button(home, "Following").doClick(0);
+            sidebarButton("Following").doClick(0);
             assertTrue(following.isVisible());
             assertEquals("Loading Following...", status());
         });
@@ -422,6 +475,10 @@ class FollowingViewTest {
         return label(following, "Following status").getText();
     }
 
+    private JToggleButton sidebarButton(String label) {
+        return find(views, JToggleButton.class, button -> label.equals(button.getText()));
+    }
+
     private JList<?> followingList() {
         return find(following, JList.class, list -> true);
     }
@@ -440,6 +497,8 @@ class FollowingViewTest {
         private final CountDownLatch deleteStarted = new CountDownLatch(1);
         private volatile CountDownLatch releaseDelete;
         private volatile boolean failDelete;
+        private final CountDownLatch listStarted = new CountDownLatch(1);
+        private volatile CountDownLatch releaseList;
 
         @Override
         public List<AccountProfile> list(UUID viewerId) throws RequestFailed {
@@ -449,6 +508,16 @@ class FollowingViewTest {
             }
             if (failList) {
                 throw new RequestFailed();
+            }
+            final CountDownLatch release = releaseList;
+            if (release != null) {
+                listStarted.countDown();
+                try {
+                    assertTrue(release.await(5, TimeUnit.SECONDS), "The test should release the list");
+                } catch (InterruptedException ignored) {
+                    Thread.currentThread().interrupt();
+                    throw new RequestFailed();
+                }
             }
             return saved.getOrDefault(viewerId, List.of());
         }

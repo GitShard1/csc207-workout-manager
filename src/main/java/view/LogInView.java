@@ -11,17 +11,15 @@ import javax.swing.JTextField;
 
 public final class LogInView extends AccountForm {
     private final LogInController controller;
-    private final ViewManagerModel viewManager;
     private final JTextField email;
     private final JPasswordField password;
 
     public LogInView(LogInViewModel viewModel, LogInController controller, ViewManagerModel viewManager) {
         super("Log In");
         this.controller = controller;
-        this.viewManager = viewManager;
         email = addTextField("Email", 'E');
         password = addPasswordField("Password", 'P');
-        addActions("Log In", "Create an account");
+        addActions("Log In", "Create an account", () -> viewManager.setState(RegisterViewModel.VIEW_NAME));
         viewModel.addPropertyChangeListener(event ->
                 SwingThreads.onEdt(() -> render((LogInState) event.getNewValue())));
     }
@@ -34,11 +32,6 @@ public final class LogInView extends AccountForm {
         SwingThreads.inBackground(() -> controller.logIn(submittedEmail, submittedPassword),
                 () -> showFormError("Something went wrong while logging in. Please try again.", password),
                 this::finishAction);
-    }
-
-    @Override
-    protected void navigate() {
-        viewManager.setState(RegisterViewModel.VIEW_NAME);
     }
 
     private void render(LogInState state) {

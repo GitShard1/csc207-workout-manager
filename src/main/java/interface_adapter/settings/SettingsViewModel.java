@@ -10,6 +10,9 @@ public class SettingsViewModel extends ViewModel<SettingsState> {
 
     public static final String VIEW_NAME = "Settings";
 
+    // What the user sees (heading + sidebar)
+    public static final String TITLE = "Settings";
+
     public SettingsViewModel() {
         super(VIEW_NAME, SettingsState.empty());
     }

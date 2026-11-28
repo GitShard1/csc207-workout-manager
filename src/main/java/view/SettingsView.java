@@ -1,7 +1,5 @@
 package view;
 
-import interface_adapter.ViewManagerModel;
-import interface_adapter.home.HomeViewModel;
 import interface_adapter.settings.ChangePasswordController;
 import interface_adapter.settings.SettingsState;
 import interface_adapter.settings.SettingsViewModel;
@@ -14,22 +12,19 @@ import javax.swing.JPasswordField;
  */
 public final class SettingsView extends AccountForm {
     private final ChangePasswordController changePasswordController;
-    private final ViewManagerModel viewManagerModel;
 
     private final JPasswordField currentPasswordField;
     private final JPasswordField newPasswordField;
     private final JPasswordField confirmPasswordField;
 
-    public SettingsView(SettingsViewModel settingsViewModel, ChangePasswordController changePasswordController,
-                        ViewManagerModel viewManagerModel) {
-        super("Settings");
+    public SettingsView(SettingsViewModel settingsViewModel, ChangePasswordController changePasswordController) {
+        super(SettingsViewModel.TITLE);
         this.changePasswordController = changePasswordController;
-        this.viewManagerModel = viewManagerModel;
 
         currentPasswordField = addPasswordField("Current password", 'C');
         newPasswordField = addPasswordField("New password", 'N');
         confirmPasswordField = addPasswordField("Confirm new password", 'M');
-        addActions("Change Password", "Back");
+        addActions("Change Password");
 
         // Redraw whenever the presenter updates the view model
         settingsViewModel.addPropertyChangeListener(event ->
@@ -51,12 +46,6 @@ public final class SettingsView extends AccountForm {
                 () -> changePasswordController.execute(currentPassword, newPassword, confirmPassword),
                 () -> showFormError("Something went wrong. Please try again.", currentPasswordField),
                 this::finishAction);
-    }
-
-    /** Back button. */
-    @Override
-    protected void navigate() {
-        viewManagerModel.setState(HomeViewModel.VIEW_NAME);
     }
 
     private void render(SettingsState state) {

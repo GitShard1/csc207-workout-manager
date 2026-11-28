@@ -6,6 +6,9 @@ import use_case.account.AccountProfile;
 public final class HomeViewModel extends ViewModel<HomeState> {
     public static final String VIEW_NAME = "Home";
 
+    // What the user sees (heading + sidebar), the code still calls it Home
+    public static final String TITLE = "Dashboard";
+
     public HomeViewModel() {
         super(VIEW_NAME, HomeState.empty());
     }

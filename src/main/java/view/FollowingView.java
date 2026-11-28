@@ -4,7 +4,6 @@ import interface_adapter.ViewManagerModel;
 import interface_adapter.following.FollowingController;
 import interface_adapter.following.FollowingState;
 import interface_adapter.following.FollowingViewModel;
-import interface_adapter.home.HomeViewModel;
 
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
@@ -31,9 +30,14 @@ public final class FollowingView extends JPanel {
     private final JList<String> accounts = new JList<>();
     private final JButton refresh = new JButton("Refresh");
     private final JButton unfollow = new JButton("Unfollow");
-    private final JButton back = new JButton("Back to Home");
     private List<FollowingState.Item> renderedAccounts = List.of();
     private boolean busy;
+
+    // Goes up every time the page is left (maybe to log out), so a call from an earlier visit is known to be stale
+    private int visit;
+    private int busyVisit;
+    private boolean showing;
+    private boolean loadWhenFree;
 
     public FollowingView(FollowingViewModel viewModel, FollowingController controller, ViewManagerModel viewManager) {
         super(new BorderLayout(0, 8));
@@ -67,7 +71,6 @@ public final class FollowingView extends JPanel {
         accounts.setPrototypeCellValue("@username  -  Display name");
         add(new JScrollPane(accounts), BorderLayout.CENTER);
         final JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEADING));
-        actions.add(back);
         actions.add(refresh);
         actions.add(unfollow);
         add(actions, BorderLayout.SOUTH);
@@ -92,24 +95,40 @@ public final class FollowingView extends JPanel {
             }
         });
         refresh.addActionListener(event -> loadFollowing());
-        back.addActionListener(event -> {
-            viewModel.setState(FollowingState.empty());
-            username.setText("");
-            viewManager.setState(HomeViewModel.VIEW_NAME);
-        });
-        viewModel.addPropertyChangeListener(event ->
-                SwingThreads.onEdt(() -> render((FollowingState) event.getNewValue())));
-        viewManager.addPropertyChangeListener(event -> {
-            if (viewModel.getViewName().equals(event.getNewValue())) {
-                SwingThreads.onEdt(this::loadFollowing);
+        viewModel.addPropertyChangeListener(event -> SwingThreads.onEdt(() -> {
+            // A late result from an earlier visit (maybe another account) isn't shown
+            if (!busyWithStaleCall()) {
+                render((FollowingState) event.getNewValue());
             }
-        });
+        }));
+
+        // Clear bookmarks and searches when leaving to keep them private across sign-ins.
+        viewManager.addPropertyChangeListener(event -> SwingThreads.onEdt(() -> {
+            if (viewModel.getViewName().equals(event.getNewValue())) {
+                showing = true;
+                loadFollowing();
+            } else {
+                showing = false;
+                clear();
+            }
+        }));
         render(viewModel.getState());
         setBusy(false);
     }
 
     private void loadFollowing() {
+        // An earlier visit's call is still out, so load once it's done instead of being skipped
+        if (busyWithStaleCall()) {
+            loadWhenFree = true;
+            return;
+        }
         run("Loading Following...", controller::loadFollowing);
+    }
+
+    private void clear() {
+        viewModel.setState(FollowingState.empty());
+        username.setText("");
+        visit++;
     }
 
     private void run(String message, Runnable action) {
@@ -117,9 +136,34 @@ public final class FollowingView extends JPanel {
             return;
         }
         status.setText(message);
+        busyVisit = visit;
         setBusy(true);
-        SwingThreads.inBackground(action, () -> status.setText("Something went wrong. Try again."),
-                () -> setBusy(false));
+        SwingThreads.inBackground(action, () -> {
+            if (!busyWithStaleCall()) {
+                status.setText("Something went wrong. Try again.");
+            }
+        }, this::finishCall);
+    }
+
+    private void finishCall() {
+        final boolean stale = busyWithStaleCall();
+        setBusy(false);
+
+        // Throw away whatever the stale call left in the view model
+        if (stale) {
+            viewModel.setState(FollowingState.empty());
+        }
+
+        if (loadWhenFree) {
+            loadWhenFree = false;
+            if (showing) {
+                loadFollowing();
+            }
+        }
+    }
+
+    private boolean busyWithStaleCall() {
+        return busy && busyVisit != visit;
     }
 
     private void render(FollowingState state) {
@@ -140,7 +184,6 @@ public final class FollowingView extends JPanel {
         search.setEnabled(!busy);
         follow.setEnabled(!busy);
         refresh.setEnabled(!busy);
-        back.setEnabled(!busy);
         accounts.setEnabled(!busy);
         updateUnfollowButton();
     }

@@ -105,7 +105,7 @@ As a user, I want to change my password and other account settings so that my ac
 
 ### Change Password
 
-**Actor:** Signed-in user. **Precondition:** Signed in. **Trigger:** The user opens Settings from Home.
+**Actor:** Signed-in user. **Precondition:** Signed in. **Trigger:** The user opens Settings from the sidebar.
 
 **Success outcome:** The account's password is the new one, and the user stays signed in.
 
@@ -188,7 +188,7 @@ The user views their past workouts, newest first, and opens one to see its sets.
 
 ### Follow an Account
 
-The actor is a signed-in user. The use case starts when the user opens Following from Home.
+The actor is a signed-in user. The use case starts when the user opens Following from the sidebar.
 
 The account appears once in the user's private Following list and is still there after signing back in.
 

@@ -31,6 +31,7 @@ import use_case.unfollow_account.UnfollowAccountInteractor;
 import view.FollowingView;
 import view.HomeView;
 import view.LogInView;
+import view.PlaceholderView;
 import view.RegisterView;
 import view.SettingsView;
 import view.ViewManager;
@@ -40,6 +41,7 @@ import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
+import java.util.List;
 
 /** Builds the Clean Architecture engine: creates every object and connects each one to its collaborators. */
 public final class WorkoutManagerApp {
@@ -97,10 +99,19 @@ public final class WorkoutManagerApp {
         final LogInView logInView = new LogInView(logInViewModel, logIn, viewManagerModel);
         views.addView(LogInViewModel.VIEW_NAME, logInView);
         views.addView(RegisterViewModel.VIEW_NAME, new RegisterView(registerViewModel, register, viewManagerModel));
-        views.addView(HomeViewModel.VIEW_NAME, new HomeView(homeViewModel, logOut, viewManagerModel));
-        views.addView(FollowingViewModel.VIEW_NAME, new FollowingView(followingViewModel, following, viewManagerModel));
-        views.addView(SettingsViewModel.VIEW_NAME,
-                new SettingsView(settingsViewModel, changePassword, viewManagerModel));
+
+        // Sidebar buttons show in this order, each labelled with its screen's TITLE
+        views.addSignedInView(HomeViewModel.VIEW_NAME, HomeViewModel.TITLE, new HomeView(homeViewModel, logOut));
+
+        // Placeholders until the real plan and history views are made, then swap the view in here
+        for (String title : List.of("Workout Plans", "Progress History")) {
+            views.addSignedInView(title, title, new PlaceholderView(title));
+        }
+
+        views.addSignedInView(FollowingViewModel.VIEW_NAME, FollowingViewModel.TITLE,
+                new FollowingView(followingViewModel, following, viewManagerModel));
+        views.addSignedInView(SettingsViewModel.VIEW_NAME, SettingsViewModel.TITLE,
+                new SettingsView(settingsViewModel, changePassword));
 
         final JFrame frame = new JFrame("Workout Manager");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
