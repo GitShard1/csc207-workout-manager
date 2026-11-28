@@ -166,6 +166,29 @@ final class SupabasePlanDaoTest {
         assertTrue(exercise.getInstructions().isEmpty());
     }
 
+    // List Plans: loads every plan the signed-in owner has
+    @Test
+    void listsTheOwnersPlansWithTheSessionToken() throws Exception {
+        server.enqueue(200, "[" + row("\"" + PUSH_DAY.getWorkoutPlanID() + "\"", "[" + BASIC_EXERCISE + "]") + "]");
+
+        final List<WorkoutPlan> plans = dao.getPlansFor(OWNER_ID);
+
+        assertEquals(1, plans.size());
+        assertEquals("Push Day", plans.get(0).getName());
+        final LoopbackSupabase.Call call = server.takeCall();
+        assertEquals("GET", call.method());
+        assertEquals("/rest/v1/workout_plans?select=id,owner_id,name,exercises,workout_completed,is_preset,"
+                + "copied_from_user_id&owner_id=eq." + OWNER_ID, call.path());
+        assertEquals("Bearer owner.token", call.authorization());
+    }
+
+    @Test
+    void aServerErrorWhileListingBecomesAStorageFailure() {
+        server.enqueue(500, "");
+
+        assertThrows(PlanStorageUnavailableException.class, () -> dao.getPlansFor(OWNER_ID));
+    }
+
     @Test
     void aServerErrorWhileLoadingBecomesAStorageFailure() {
         server.enqueue(500, "");
