@@ -1,9 +1,7 @@
-package interface_adapter.create_plan;
+package interface_adapter.plan_editor;
 
 import interface_adapter.ViewManagerModel;
 import interface_adapter.home.HomeViewModel;
-import interface_adapter.plan_editor.PlanEditorState;
-import interface_adapter.plan_editor.PlanEditorViewModel;
 import use_case.create_plan.CreatePlanOutputBoundary;
 import use_case.create_plan.CreatePlanOutputData;
 

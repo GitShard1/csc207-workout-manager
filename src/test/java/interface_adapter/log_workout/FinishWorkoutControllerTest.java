@@ -1,4 +1,4 @@
-package interface_adapter.finish_workout;
+package interface_adapter.log_workout;
 
 import org.junit.jupiter.api.Test;
 import use_case.finish_workout.FinishWorkoutInputBoundary;

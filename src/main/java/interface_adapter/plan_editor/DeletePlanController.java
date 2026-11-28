@@ -1,4 +1,4 @@
-package interface_adapter.delete_plan;
+package interface_adapter.plan_editor;
 
 import use_case.delete_plan.DeletePlanInputBoundary;
 import use_case.delete_plan.DeletePlanInputData;

@@ -1,8 +1,6 @@
-package interface_adapter.finish_workout;
+package interface_adapter.log_workout;
 
 import interface_adapter.ViewManagerModel;
-import interface_adapter.log_workout.LogWorkoutState;
-import interface_adapter.log_workout.LogWorkoutViewModel;
 import interface_adapter.workout_summary.WorkoutSummaryState;
 import interface_adapter.workout_summary.WorkoutSummaryViewModel;
 import org.junit.jupiter.api.Test;

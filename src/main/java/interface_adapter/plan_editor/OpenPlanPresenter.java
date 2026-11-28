@@ -1,8 +1,6 @@
-package interface_adapter.open_plan;
+package interface_adapter.plan_editor;
 
 import interface_adapter.ViewManagerModel;
-import interface_adapter.plan_editor.PlanEditorState;
-import interface_adapter.plan_editor.PlanEditorViewModel;
 import use_case.open_plan.OpenPlanOutputBoundary;
 import use_case.open_plan.OpenPlanOutputData;
 

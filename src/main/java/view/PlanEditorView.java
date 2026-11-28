@@ -1,9 +1,9 @@
 package view;
 
 import interface_adapter.ViewManagerModel;
-import interface_adapter.create_plan.CreatePlanController;
-import interface_adapter.edit_plan.EditPlanController;
 import interface_adapter.home.HomeViewModel;
+import interface_adapter.plan_editor.CreatePlanController;
+import interface_adapter.plan_editor.EditPlanController;
 import interface_adapter.plan_editor.PlanEditorState;
 import interface_adapter.plan_editor.PlanEditorViewModel;
 

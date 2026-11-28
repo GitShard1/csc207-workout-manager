@@ -1,4 +1,4 @@
-package interface_adapter.open_plan;
+package interface_adapter.plan_editor;
 
 import use_case.open_plan.OpenPlanInputBoundary;
 import use_case.open_plan.OpenPlanInputData;

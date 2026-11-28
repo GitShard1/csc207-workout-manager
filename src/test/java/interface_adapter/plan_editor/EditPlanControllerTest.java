@@ -1,4 +1,4 @@
-package interface_adapter.edit_plan;
+package interface_adapter.plan_editor;
 
 import org.junit.jupiter.api.Test;
 import use_case.edit_plan.EditPlanInputBoundary;

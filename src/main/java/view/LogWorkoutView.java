@@ -1,8 +1,8 @@
 package view;
 
 import interface_adapter.ViewManagerModel;
-import interface_adapter.finish_workout.FinishWorkoutController;
 import interface_adapter.home.HomeViewModel;
+import interface_adapter.log_workout.FinishWorkoutController;
 import interface_adapter.log_workout.LogWorkoutState;
 import interface_adapter.log_workout.LogWorkoutViewModel;
 import interface_adapter.log_workout.WorkoutFormat;

@@ -1,9 +1,7 @@
-package interface_adapter.start_workout;
+package interface_adapter.log_workout;
 
 import interface_adapter.ViewManagerModel;
 import interface_adapter.home.HomeViewModel;
-import interface_adapter.log_workout.LogWorkoutState;
-import interface_adapter.log_workout.LogWorkoutViewModel;
 import org.junit.jupiter.api.Test;
 import use_case.start_workout.StartWorkoutOutputData;
 import use_case.workout_common.SetEntry;

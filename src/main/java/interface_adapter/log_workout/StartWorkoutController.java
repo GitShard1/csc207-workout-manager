@@ -1,4 +1,4 @@
-package interface_adapter.start_workout;
+package interface_adapter.log_workout;
 
 import use_case.start_workout.StartWorkoutInputBoundary;
 import use_case.start_workout.StartWorkoutInputData;

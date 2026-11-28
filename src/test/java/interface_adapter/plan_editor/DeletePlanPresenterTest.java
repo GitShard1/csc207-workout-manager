@@ -1,7 +1,5 @@
-package interface_adapter.delete_plan;
+package interface_adapter.plan_editor;
 
-import interface_adapter.plan_editor.PlanEditorState;
-import interface_adapter.plan_editor.PlanEditorViewModel;
 import org.junit.jupiter.api.Test;
 import use_case.delete_plan.DeletePlanOutputData;
 
