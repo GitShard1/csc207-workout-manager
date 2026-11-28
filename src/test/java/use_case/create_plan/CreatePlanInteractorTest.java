@@ -150,6 +150,17 @@ class CreatePlanInteractorTest {
     }
 
     @Test
+    void failureWeightNotANumberTest() {
+        create("Push Day", List.of(entry("0025", 3, 8, Double.NaN)));
+        assertEquals("Row 1: weight must be a number.", presenter.error);
+
+        create("Push Day", List.of(entry("0025", 3, 8, Double.POSITIVE_INFINITY)));
+        assertEquals("Row 1: weight must be a number.", presenter.error);
+
+        assertNull(planDataAccessObject.saved);
+    }
+
+    @Test
     void failureNameTakenTest() {
         planDataAccessObject.takenNames.add("push day");
 

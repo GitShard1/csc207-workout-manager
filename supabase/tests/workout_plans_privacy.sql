@@ -12,7 +12,8 @@ values
 -- A starter plan, added the way the team would add one: outside the app.
 insert into public.workout_plans (id, owner_id, name, exercises, is_preset)
 values ('5e1b7c3d-9a24-4f8e-b6d0-2c4a8e6f1b93', '3f6d2a91-5b0e-4c1a-9e57-0d7f4b8a2c61', 'Starter Full Body',
-    '[{"exercise_id":"0043","name":"Barbell Squat","sets":3,"reps":10,"weight":null}]', true);
+    '[{"exercise_id":"0043","name":"Barbell Squat","body_part":"UPPER_LEGS","sets":3,"reps":10,"weight":null}]',
+    true);
 
 set local role authenticated;
 set local request.jwt.claim.sub = '3f6d2a91-5b0e-4c1a-9e57-0d7f4b8a2c61';
@@ -24,7 +25,7 @@ declare
     plan_uuid constant uuid := 'c7e9a1f3-2b5d-4e8a-9c06-1f3b5d7e9a24';
     starter_uuid constant uuid := '5e1b7c3d-9a24-4f8e-b6d0-2c4a8e6f1b93';
     one_exercise constant jsonb :=
-        '[{"exercise_id":"0025","name":"Barbell Bench Press","sets":3,"reps":8,"weight":60}]';
+        '[{"exercise_id":"0025","name":"Barbell Bench Press","body_part":"CHEST","sets":3,"reps":8,"weight":60}]';
 begin
     insert into public.workout_plans (id, name, exercises) values (plan_uuid, 'Push Day', one_exercise);
 
@@ -53,6 +54,14 @@ begin
     begin
         insert into public.workout_plans (id, name, exercises) values (gen_random_uuid(), 'Empty', '[]');
         raise exception 'A plan without exercises should fail with a check violation';
+    exception when check_violation then
+        null;
+    end;
+
+    begin
+        insert into public.workout_plans (id, name, exercises)
+        values (gen_random_uuid(), 'No Body Part', '[{"exercise_id":"0025","name":"Barbell Bench Press","sets":3,"reps":8}]');
+        raise exception 'An exercise missing a field the app needs should fail with a check violation';
     exception when check_violation then
         null;
     end;
@@ -127,10 +136,9 @@ begin
         raise exception 'Another account should be unable to delete the owner''s plan';
     end if;
 
-    -- Different accounts may use the same plan name.
     insert into public.workout_plans (id, name, exercises)
     values (gen_random_uuid(), 'Push Day A',
-        '[{"exercise_id":"0025","name":"Barbell Bench Press","sets":3,"reps":8,"weight":60}]');
+        '[{"exercise_id":"0025","name":"Barbell Bench Press","body_part":"CHEST","sets":3,"reps":8,"weight":60}]');
 end
 $$;
 

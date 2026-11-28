@@ -15,7 +15,10 @@ create table public.workout_plans (
     created_at timestamptz not null default now(),
     constraint workout_plans_name_length check (char_length(name) between 1 and 50),
     constraint workout_plans_has_exercises check (
-        case when jsonb_typeof(exercises) = 'array' then jsonb_array_length(exercises) >= 1 else false end)
+        case when jsonb_typeof(exercises) = 'array' then jsonb_array_length(exercises) >= 1 else false end),
+    -- Starter plans are written by hand, and the app can't open a plan whose exercises lack these fields.
+    constraint workout_plans_exercises_complete check (not jsonb_path_exists(exercises,
+        '$[*] ? (!(exists(@.exercise_id) && exists(@.name) && exists(@.body_part) && exists(@.sets) && exists(@.reps)))'))
 );
 
 -- Plan names are unique per account, ignoring case. This index also covers lookups by owner.

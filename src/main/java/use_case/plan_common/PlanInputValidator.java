@@ -58,6 +58,9 @@ public final class PlanInputValidator {
         else if (planRow.reps() < 1) {
             return "Row " + row + ": must contain at least 1 rep.";
         }
+        else if (planRow.weight() != null && !Double.isFinite(planRow.weight())) {
+            return "Row " + row + ": weight must be a number.";
+        }
         else if (planRow.weight() != null && planRow.weight() < 0) {
             return "Row " + row + ": weights cannot be negative.";
         }
