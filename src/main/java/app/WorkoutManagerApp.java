@@ -5,7 +5,10 @@ import data_access.SupabaseAuthDataAccessObject;
 import data_access.SupabaseChangePasswordDataAccessObject;
 import data_access.SupabaseClient;
 import data_access.SupabaseFollowingDao;
+import data_access.SupabasePlanDao;
+import data_access.SupabasePlanSharingDao;
 import data_access.SupabaseProfileDao;
+import entity.User;
 import interface_adapter.ViewManagerModel;
 import interface_adapter.following.FollowingController;
 import interface_adapter.following.FollowingPresenter;
@@ -16,6 +19,9 @@ import interface_adapter.login.LogInPresenter;
 import interface_adapter.login.LogInViewModel;
 import interface_adapter.logout.LogOutController;
 import interface_adapter.logout.LogOutPresenter;
+import interface_adapter.plan_editor.PlanEditorViewModel;
+import interface_adapter.plan_sharing.PlanSharingController;
+import interface_adapter.plan_sharing.SharedPlanEditorController;
 import interface_adapter.register.RegisterController;
 import interface_adapter.register.RegisterPresenter;
 import interface_adapter.register.RegisterViewModel;
@@ -26,20 +32,25 @@ import use_case.change_password.ChangePasswordInteractor;
 import use_case.following.FollowingInteractor;
 import use_case.login.LogInInteractor;
 import use_case.logout.LogOutInteractor;
+import use_case.plan_sharing.PlanSharingInteractor;
 import use_case.register.RegisterInteractor;
 import use_case.unfollow_account.UnfollowAccountInteractor;
 import view.FollowingView;
 import view.HomeView;
 import view.LogInView;
+import view.PlanEditorView;
 import view.RegisterView;
 import view.SettingsView;
 import view.ViewManager;
+import view.WorkoutPlansView;
 
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
+import java.util.UUID;
+import java.util.function.Supplier;
 
 /** Builds the Clean Architecture engine: creates every object and connects each one to its collaborators. */
 public final class WorkoutManagerApp {
@@ -87,6 +98,13 @@ public final class WorkoutManagerApp {
                 followingInteractor, followingInteractor, followingInteractor,
                 new UnfollowAccountInteractor(session, bookmarks, followingPresenter));
 
+        final PlanEditorViewModel planEditorModel = new PlanEditorViewModel();
+        final PlanSharingController planSharing = new PlanSharingController(
+                new PlanSharingInteractor(new SupabasePlanSharingDao(client, session)));
+        final SharedPlanEditorController sharedPlanEditor =
+                new SharedPlanEditorController(new SupabasePlanDao(client, session), session);
+        final Supplier<UUID> currentUser = () -> session.currentUser().map(User::getUserID).orElse(null);
+
         // Change Password (#22)
         final SettingsViewModel settingsViewModel = new SettingsViewModel();
         final ChangePasswordController changePassword = new ChangePasswordController(new ChangePasswordInteractor(
@@ -99,6 +117,10 @@ public final class WorkoutManagerApp {
         views.addView(RegisterViewModel.VIEW_NAME, new RegisterView(registerViewModel, register, viewManagerModel));
         views.addView(HomeViewModel.VIEW_NAME, new HomeView(homeViewModel, logOut, viewManagerModel));
         views.addView(FollowingViewModel.VIEW_NAME, new FollowingView(followingViewModel, following, viewManagerModel));
+        views.addView(WorkoutPlansView.VIEW_NAME, new WorkoutPlansView(planSharing, sharedPlanEditor::open,
+                planEditorModel, viewManagerModel, currentUser, session::generation));
+        views.addView(PlanEditorViewModel.VIEW_NAME, new PlanEditorView(planEditorModel, viewManagerModel,
+                sharedPlanEditor::save, currentUser, session::generation));
         views.addView(SettingsViewModel.VIEW_NAME,
                 new SettingsView(settingsViewModel, changePassword, viewManagerModel));
 

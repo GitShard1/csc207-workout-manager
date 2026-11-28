@@ -32,6 +32,9 @@ public final class HomeView extends JPanel {
         final JButton following = new JButton("Following");
         following.addActionListener(event -> viewManager.setState(FollowingViewModel.VIEW_NAME));
         add(following);
+        final JButton workoutPlans = new JButton("Workout Plans");
+        workoutPlans.addActionListener(event -> viewManager.setState(WorkoutPlansView.VIEW_NAME));
+        add(workoutPlans);
         add(settings);
         add(logOut);
 
@@ -41,10 +44,12 @@ public final class HomeView extends JPanel {
         logOut.addActionListener(event -> {
             logOut.setEnabled(false);
             following.setEnabled(false);
+            workoutPlans.setEnabled(false);
             settings.setEnabled(false);
             SwingThreads.inBackground(controller::logOut, () -> { }, () -> {
                 logOut.setEnabled(true);
                 following.setEnabled(true);
+                workoutPlans.setEnabled(true);
                 settings.setEnabled(true);
             });
         });

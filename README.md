@@ -55,7 +55,7 @@ As a signed-in user, I want to follow accounts by username and remove bookmarks 
 
 ### User Story 9
 
-*Planned.* As a user, I want to copy my friend's workout plans so I can do the same exercises as my friends.
+As a signed-in user, I want to share one workout plan by code so another signed-in user can preview it and save their own copy.
 
 ### User Story 10
 
@@ -224,9 +224,13 @@ The actor is a signed-in user with a bookmark in their private Following list. T
 
 The user views pending friend requests and accepts or declines each one. Accepting makes the two users friends, so they can see each other's profiles, plans and recent workouts.
 
-### Copy a Friend's Workout Plan (Planned)
+### Share a Workout Plan
 
-The user opens a friend's profile and copies one of their plans. The system saves an independent copy to the user's own plans, named to show where it came from.
+1. Open **Workout Plans**, select a plan you own, and generate a share code.
+2. Send the code to the recipient. Anyone signed in with the code can preview that one plan for seven days.
+3. The recipient enters the code, checks the exercises and targets, and chooses **Save copy**. The new plan appears in their list and is editable independently.
+
+The code points to the latest saved plan. If it changes during preview, look it up again before copying. Generating a replacement, revoking the code, or deleting the source ends access through that code. Existing copies remain editable. See the [sharing guide](docs/workout-plan-sharing.md) for setup and testing.
 
 ---
 
@@ -394,7 +398,7 @@ You can also open `pom.xml` as a Maven project in your IDE and run `app.WorkoutM
 
 - `./mvnw test` checks style and runs the unit tests. `./mvnw verify` also writes a coverage report to `target/site/jacoco/index.html`.
 - GitHub Actions runs the same checks on pull requests and pushes to `main`.
-- Apply the [profile](supabase/migrations/20261123190718_account_profiles.sql), [Following](supabase/migrations/20261124190842_follow_accounts.sql), [Unfollow](supabase/migrations/20261126233716_unfollow_accounts.sql), and [workout plans](supabase/migrations/20261127200000_workout_plans.sql) migrations in that order when setting up a Supabase project. Set `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` to use a different project.
+- Apply the [profile](supabase/migrations/20261123190718_account_profiles.sql), [Following](supabase/migrations/20261124190842_follow_accounts.sql), [Unfollow](supabase/migrations/20261126233716_unfollow_accounts.sql), [workout plans](supabase/migrations/20261127200000_workout_plans.sql), and [workout plan sharing](supabase/migrations/20261128052227_share_workout_plans.sql) migrations in filename order when setting up a Supabase project. Set `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` to use a different project.
 - Following's unit tests use an in-memory DAO. Its HTTP tests use a loopback server. The [SQL privacy suite](supabase/tests/following_privacy.sql) checks ownership and database constraints in a migrated test project.
 - Plan storage's HTTP tests use the same loopback server. The [plan SQL privacy suite](supabase/tests/workout_plans_privacy.sql) checks plan ownership, starter plans, and name rules in a migrated test project.
 

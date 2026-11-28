@@ -17,6 +17,7 @@ public final class InMemorySessionStore
         implements StartSessionDataAccessInterface, LogOutSessionDataAccessInterface, CurrentUserDataAccessInterface {
     private AuthSession session;
     private User user;
+    private long generation;
 
     @Override
     public synchronized void start(AuthSession newSession, User newUser) {
@@ -25,6 +26,7 @@ public final class InMemorySessionStore
         }
         session = newSession;
         user = newUser;
+        generation++;
     }
 
     @Override
@@ -32,6 +34,7 @@ public final class InMemorySessionStore
         final Optional<AuthSession> ended = Optional.ofNullable(session);
         session = null;
         user = null;
+        generation++;
         return ended;
     }
 
@@ -47,5 +50,10 @@ public final class InMemorySessionStore
     /** Binds a request to the account checked by its use case, even if the current account changes. */
     public synchronized Optional<String> accessTokenFor(UUID userId) {
         return session != null && session.userId().equals(userId) ? accessToken() : Optional.empty();
+    }
+
+    /** Identifies a session lifecycle so the UI can discard results from a prior sign-in. */
+    public synchronized long generation() {
+        return generation;
     }
 }
