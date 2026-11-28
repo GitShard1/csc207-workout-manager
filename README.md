@@ -61,6 +61,10 @@ As a signed-in user, I want to follow accounts by username and remove bookmarks 
 
 As a user, I want to change my password and other account settings so that my account stays up to date.
 
+### User Story 11
+
+As a user, I want to see all my workout plans in one place so I can pick one to start, edit or delete.
+
 ---
 
 ## Use Cases
@@ -131,6 +135,20 @@ As a user, I want to change my password and other account settings so that my ac
 - At step 1, if the user searches without entering anything, the system asks for a name, body part or equipment.
 - At step 2, if nothing matches, the system says so and the user can change the search.
 - At step 2, if the exercise library can't be reached, the system says search is unavailable right now and the user can try again later.
+
+### List Workout Plans
+
+**Actor:** Signed-in user. **Precondition:** Signed in. **Trigger:** The user opens Workout Plans.
+
+**Success outcome:** The user sees each of their plans, sorted by name, with how many exercises it has. Nothing in the system changes.
+
+1. The system loads the user's plans.
+2. The system lists each plan's name and number of exercises.
+3. The user picks a plan to edit or delete it, or chooses New plan (these start the plan use cases below).
+
+**Extensions:**
+- At step 1, if the user has no plans, the list is empty and the system suggests making one.
+- At step 1, if plans can't be reached, the system says so and the user can open the page again to retry.
 
 ### Create a Workout Plan
 
@@ -234,7 +252,7 @@ The user opens a friend's profile and copies one of their plans. The system save
 
 | Team Member | MVP Use Case |
 |-------------|--------------|
-| Jirat | User Settings & Change Password & Dashboard |
+| Jirat | Change Password, List Workout Plans |
 | Demeng | Register an Account, Log In, Log Out |
 | Eric | Follow Accounts |
 | David | Find an Exercise |
