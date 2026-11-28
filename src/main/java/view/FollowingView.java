@@ -33,6 +33,12 @@ public final class FollowingView extends JPanel {
     private List<FollowingState.Item> renderedAccounts = List.of();
     private boolean busy;
 
+    // Goes up every time the page is left (maybe to log out), so a call from an earlier visit is known to be stale
+    private int visit;
+    private int busyVisit;
+    private boolean showing;
+    private boolean loadWhenFree;
+
     public FollowingView(FollowingViewModel viewModel, FollowingController controller, ViewManagerModel viewManager) {
         super(new BorderLayout(0, 8));
         this.viewModel = viewModel;
@@ -89,14 +95,20 @@ public final class FollowingView extends JPanel {
             }
         });
         refresh.addActionListener(event -> loadFollowing());
-        viewModel.addPropertyChangeListener(event ->
-                SwingThreads.onEdt(() -> render((FollowingState) event.getNewValue())));
+        viewModel.addPropertyChangeListener(event -> SwingThreads.onEdt(() -> {
+            // A late result from an earlier visit (maybe another account) isn't shown
+            if (!busyWithStaleCall()) {
+                render((FollowingState) event.getNewValue());
+            }
+        }));
 
         // Clear bookmarks and searches when leaving to keep them private across sign-ins.
         viewManager.addPropertyChangeListener(event -> SwingThreads.onEdt(() -> {
             if (viewModel.getViewName().equals(event.getNewValue())) {
+                showing = true;
                 loadFollowing();
             } else {
+                showing = false;
                 clear();
             }
         }));
@@ -105,12 +117,18 @@ public final class FollowingView extends JPanel {
     }
 
     private void loadFollowing() {
+        // An earlier visit's call is still out, so load once it's done instead of being skipped
+        if (busyWithStaleCall()) {
+            loadWhenFree = true;
+            return;
+        }
         run("Loading Following...", controller::loadFollowing);
     }
 
     private void clear() {
         viewModel.setState(FollowingState.empty());
         username.setText("");
+        visit++;
     }
 
     private void run(String message, Runnable action) {
@@ -118,9 +136,34 @@ public final class FollowingView extends JPanel {
             return;
         }
         status.setText(message);
+        busyVisit = visit;
         setBusy(true);
-        SwingThreads.inBackground(action, () -> status.setText("Something went wrong. Try again."),
-                () -> setBusy(false));
+        SwingThreads.inBackground(action, () -> {
+            if (!busyWithStaleCall()) {
+                status.setText("Something went wrong. Try again.");
+            }
+        }, this::finishCall);
+    }
+
+    private void finishCall() {
+        final boolean stale = busyWithStaleCall();
+        setBusy(false);
+
+        // Throw away whatever the stale call left in the view model
+        if (stale) {
+            viewModel.setState(FollowingState.empty());
+        }
+
+        if (loadWhenFree) {
+            loadWhenFree = false;
+            if (showing) {
+                loadFollowing();
+            }
+        }
+    }
+
+    private boolean busyWithStaleCall() {
+        return busy && busyVisit != visit;
     }
 
     private void render(FollowingState state) {
